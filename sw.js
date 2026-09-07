@@ -1,109 +1,243 @@
-const CACHE = 'nca-eket-v6-1';
+const CACHE_NAME =
+"nca-eket-v2";
 
 const ASSETS = [
-  './',
-  './index.html',
-  './manifest.json',
-  './icon-192.png',
-  './icon-512.png'
+
+"./",
+
+"./index.html",
+
+"./manifest.json",
+
+"./icon-192.png",
+
+"./icon-512.png"
+
 ];
 
+# /*
+
+# INSTALL
+
+*/
 
 self.addEventListener(
-  'install',
-  event => {
+"install",
+(event) => {
 
-    self.skipWaiting();
+```
+event.waitUntil(
 
-    event.waitUntil(
+  caches
+    .open(CACHE_NAME)
 
-      caches
-        .open(CACHE)
-        .then(cache => {
+    .then(
+      (cache) => {
 
-          return cache.addAll(
-            ASSETS
-          );
+        return cache.addAll(
+          ASSETS
+        );
 
-        })
+      }
+    )
 
-    );
+    .then(
+      () => {
 
-  }
+        return self.skipWaiting();
+
+      }
+    )
+
+);
+```
+
+}
 );
 
+# /*
+
+# ACTIVATE
+
+*/
 
 self.addEventListener(
-  'activate',
-  event => {
+"activate",
+(event) => {
 
-    event.waitUntil(
+```
+event.waitUntil(
 
-      caches
-        .keys()
-        .then(keys => {
+  caches.keys()
 
-          return Promise.all(
+    .then(
+      (cacheNames) => {
 
-            keys
-              .filter(key => {
+        return Promise.all(
 
-                return key !== CACHE;
+          cacheNames.map(
+            (cacheName) => {
 
-              })
-              .map(key => {
+              if (
+                cacheName !==
+                CACHE_NAME
+              ) {
 
-                return caches.delete(key);
+                return caches.delete(
+                  cacheName
+                );
 
-              })
+              }
 
-          );
+            }
+          )
 
-        })
-        .then(() => {
+        );
 
-          return self.clients.claim();
+      }
+    )
 
-        })
+    .then(
+      () => {
 
-    );
+        return self.clients.claim();
 
-  }
+      }
+    )
+
+);
+```
+
+}
 );
 
+# /*
+
+# FETCH
+
+*/
 
 self.addEventListener(
-  'fetch',
-  event => {
+"fetch",
+(event) => {
 
-    if (
-      event.request.method !== 'GET'
-    ) {
+```
+if (
+  event.request.method !==
+  "GET"
+) {
 
-      return;
+  return;
 
-    }
+}
 
 
-    event.respondWith(
+event.respondWith(
 
-      fetch(event.request)
+  caches.match(
+    event.request
+  )
 
-        .then(response => {
+    .then(
+      (cachedResponse) => {
 
-          return response;
+        if (
+          cachedResponse
+        ) {
 
-        })
+          return cachedResponse;
 
-        .catch(() => {
+        }
 
-          return caches.match(
-            event.request
+
+        return fetch(
+          event.request
+        )
+
+          .then(
+            (networkResponse) => {
+
+              if (
+                !networkResponse ||
+                networkResponse.status !== 200 ||
+                networkResponse.type !== "basic"
+              ) {
+
+                return networkResponse;
+
+              }
+
+
+              const responseCopy =
+                networkResponse.clone();
+
+
+              caches
+                .open(
+                  CACHE_NAME
+                )
+
+                .then(
+                  (cache) => {
+
+                    cache.put(
+                      event.request,
+                      responseCopy
+                    );
+
+                  }
+                );
+
+
+              return networkResponse;
+
+            }
+          )
+
+          .catch(
+            () => {
+
+              return caches.match(
+                "./index.html"
+              );
+
+            }
           );
 
-        })
+      }
+    )
 
-    );
+);
+```
 
-  }
+}
+);
+
+# /*
+
+# MESSAGE
+
+Allows future communication
+between the application and
+the service worker.
+
+*/
+
+self.addEventListener(
+"message",
+(event) => {
+
+```
+if (
+  event.data &&
+  event.data.type ===
+  "SKIP_WAITING"
+) {
+
+  self.skipWaiting();
+
+}
+```
+
+}
 );
