@@ -1,24 +1,29 @@
 <!DOCTYPE html>
-
 <html lang="en">
+
 <head>
+
   <meta charset="UTF-8">
 
-<meta name="viewport"
-     content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="description"
+    content="NCA EKET Electronic Requisition and Procurement Management System for submitting, reviewing, approving, and managing church requisitions efficiently.">
+
+  <meta name="viewport"
+    content="width=device-width, initial-scale=1, viewport-fit=cover">
 
   <meta name="theme-color" content="#662D91">
 
   <meta name="apple-mobile-web-app-capable" content="yes">
 
-<meta name="apple-mobile-web-app-status-bar-style"
-     content="default">
+  <meta name="apple-mobile-web-app-status-bar-style"
+    content="default">
 
   <link rel="manifest" href="./manifest.json">
 
   <link rel="apple-touch-icon" href="./icon-192.png">
 
   <title>NCA EKET e-Requisition</title>
+
 
   <style>
 
@@ -101,7 +106,7 @@
       }
 
       .brand span {
-        max-width: 150px;
+        max-width: 140px;
       }
 
       button {
@@ -115,43 +120,47 @@
 
 </head>
 
+
 <body>
+
 
   <div class="appbar">
 
-```
-<div class="brand">
+    <div class="brand">
 
-  <img
-    src="./icon-192.png"
-    alt="NCA EKET Logo">
+      <img
+        src="./icon-192.png"
+        alt="NCA EKET Logo">
 
-  <span>NCA EKET e-Requisition</span>
+      <span>NCA EKET e-Requisition</span>
 
-</div>
+    </div>
 
-<div class="actions">
 
-  <button
-    id="notificationButton"
-    type="button">
+    <div class="actions">
 
-    🔔 Enable
+      <button
+        id="notificationButton"
+        type="button">
 
-  </button>
+        🔔 Enable
 
-  <button
-    id="refreshButton"
-    type="button">
+      </button>
 
-    Refresh
 
-  </button>
+      <button
+        id="refreshButton"
+        type="button">
 
-</div>
-```
+        Refresh
+
+      </button>
+
+    </div>
 
   </div>
+
+
 
   <iframe
     id="app"
@@ -160,28 +169,38 @@
 
   </iframe>
 
+
+
   <script type="module">
 
-    import { initializeApp }
-      from "https://www.gstatic.com/firebasejs/10.13.2/firebase-app.js";
+    import {
+      initializeApp
+    }
+    from
+    "https://www.gstatic.com/firebasejs/10.13.2/firebase-app.js";
+
 
     import {
       getMessaging,
       getToken,
-      onMessage
+      onMessage,
+      isSupported
     }
-      from "https://www.gstatic.com/firebasejs/10.13.2/firebase-messaging.js";
+    from
+    "https://www.gstatic.com/firebasejs/10.13.2/firebase-messaging.js";
+
 
 
     /*
-    ==========================================
+    ========================================
     FIREBASE CONFIGURATION
-    ==========================================
+    ========================================
     */
 
     const firebaseConfig = {
 
-      apiKey: "AIzaSyBTIW86UDfX_vwomDtlsCbgzdjWMR5LbKY",
+      apiKey:
+        "AIzaSyBTIW86UDfX_vwomDtlsCbgzdjWMR5LbKY",
 
       authDomain:
         "nca-eket-procurement.firebaseapp.com",
@@ -201,33 +220,22 @@
     };
 
 
+
     /*
-    ==========================================
-    FIREBASE VAPID PUBLIC KEY
-    ==========================================
+    ========================================
+    FIREBASE VAPID KEY
+    ========================================
     */
 
     const VAPID_KEY =
       "BHdiWSDWpYehJTDZ2rHImeIGCQ7VU9BojBmNE5puvndkMOrHOlaFtLImAG1vzmLHiU6oANbKnNVoX15Ot6pH2Ec";
 
 
-    /*
-    ==========================================
-    INITIALIZE FIREBASE
-    ==========================================
-    */
-
-    const firebaseApp =
-      initializeApp(firebaseConfig);
-
-    const messaging =
-      getMessaging(firebaseApp);
-
 
     /*
-    ==========================================
+    ========================================
     PAGE ELEMENTS
-    ==========================================
+    ========================================
     */
 
     const notificationButton =
@@ -235,10 +243,12 @@
         "notificationButton"
       );
 
+
     const refreshButton =
       document.getElementById(
         "refreshButton"
       );
+
 
     const iframe =
       document.getElementById(
@@ -246,153 +256,179 @@
       );
 
 
+
     /*
-    ==========================================
-    REGISTER MAIN SERVICE WORKER
-    ==========================================
+    ========================================
+    FIREBASE VARIABLES
+    ========================================
     */
 
-    let mainServiceWorkerRegistration = null;
+    let messaging = null;
+
+    let serviceWorkerRegistration = null;
 
 
-    async function registerMainServiceWorker() {
 
-      if (!("serviceWorker" in navigator)) {
+    /*
+    ========================================
+    INITIALIZE FIREBASE
+    ========================================
+    */
+
+    async function initializeFirebase() {
+
+      try {
+
+        const supported =
+          await isSupported();
+
+
+        if (!supported) {
+
+          console.warn(
+            "Firebase Messaging is not supported in this browser."
+          );
+
+          notificationButton.textContent =
+            "🔔 Unsupported";
+
+          return;
+
+        }
+
+
+        const firebaseApp =
+          initializeApp(
+            firebaseConfig
+          );
+
+
+        messaging =
+          getMessaging(
+            firebaseApp
+          );
+
 
         console.log(
+          "Firebase initialized successfully."
+        );
+
+
+        await registerMessagingServiceWorker();
+
+
+        setupForegroundMessages();
+
+
+      }
+
+      catch (error) {
+
+        console.error(
+          "Firebase initialization error:",
+          error
+        );
+
+      }
+
+    }
+
+
+
+    /*
+    ========================================
+    REGISTER ONE SERVICE WORKER ONLY
+    ========================================
+    */
+
+    async function registerMessagingServiceWorker() {
+
+      if (
+        !("serviceWorker" in navigator)
+      ) {
+
+        throw new Error(
           "Service Workers are not supported."
         );
 
-        return null;
-
       }
 
-      try {
 
-        mainServiceWorkerRegistration =
-          await navigator.serviceWorker.register(
-            "./sw.js"
-          );
-
-        console.log(
-          "NCA PWA Service Worker Registered"
+      serviceWorkerRegistration =
+        await navigator.serviceWorker.register(
+          "./firebase-messaging-sw.js"
         );
 
-        return mainServiceWorkerRegistration;
 
-      }
+      await navigator.serviceWorker.ready;
 
-      catch (error) {
 
-        console.error(
-          "Service Worker Registration Failed:",
-          error
-        );
+      console.log(
+        "Firebase Messaging Service Worker Registered:",
+        serviceWorkerRegistration.scope
+      );
 
-        return null;
 
-      }
+      return serviceWorkerRegistration;
 
     }
 
 
-    /*
-    ==========================================
-    REGISTER FIREBASE MESSAGING SERVICE WORKER
-    ==========================================
-    */
-
-    let firebaseMessagingRegistration = null;
-
-
-    async function registerFirebaseMessagingWorker() {
-
-      if (!("serviceWorker" in navigator)) {
-
-        return null;
-
-      }
-
-      try {
-
-        firebaseMessagingRegistration =
-          await navigator.serviceWorker.register(
-            "./firebase-messaging-sw.js"
-          );
-
-        console.log(
-          "Firebase Messaging Service Worker Registered"
-        );
-
-        return firebaseMessagingRegistration;
-
-      }
-
-      catch (error) {
-
-        console.error(
-          "Firebase Messaging Worker Failed:",
-          error
-        );
-
-        return null;
-
-      }
-
-    }
-
 
     /*
-    ==========================================
-    INITIALIZE SERVICE WORKERS
-    ==========================================
-    */
-
-    async function initializeServiceWorkers() {
-
-      await registerMainServiceWorker();
-
-      await registerFirebaseMessagingWorker();
-
-    }
-
-
-    initializeServiceWorkers();
-
-
-    /*
-    ==========================================
+    ========================================
     ENABLE NOTIFICATIONS
-    ==========================================
+    ========================================
     */
 
     async function enableNotifications() {
 
-      if (!("Notification" in window)) {
-
-        alert(
-          "This browser does not support notifications."
-        );
-
-        return;
-
-      }
-
-
       try {
+
+        if (!messaging) {
+
+          alert(
+            "Firebase is still loading. Please wait a moment and try again."
+          );
+
+          return;
+
+        }
+
+
+        if (
+          !("Notification" in window)
+        ) {
+
+          alert(
+            "This browser does not support notifications."
+          );
+
+          return;
+
+        }
+
+
+        notificationButton.textContent =
+          "🔔 Requesting...";
+
 
         const permission =
           await Notification.requestPermission();
 
 
-        if (permission !== "granted") {
+
+        if (
+          permission !== "granted"
+        ) {
+
+          notificationButton.textContent =
+            "🔔 Enable";
+
 
           alert(
             "Notification permission was not granted."
           );
-
-          notificationButton.textContent =
-            "🔔 Enable";
 
           return;
 
@@ -403,9 +439,11 @@
           "🔔 Connecting...";
 
 
-        if (!firebaseMessagingRegistration) {
+        if (
+          !serviceWorkerRegistration
+        ) {
 
-          await registerFirebaseMessagingWorker();
+          await registerMessagingServiceWorker();
 
         }
 
@@ -419,20 +457,29 @@
                 VAPID_KEY,
 
               serviceWorkerRegistration:
-                firebaseMessagingRegistration
+                serviceWorkerRegistration
 
             }
           );
 
 
+
         if (token) {
 
           console.log(
-            "FCM DEVICE TOKEN:"
+            "================================="
+          );
+
+          console.log(
+            "FCM REGISTRATION TOKEN:"
           );
 
           console.log(
             token
+          );
+
+          console.log(
+            "================================="
           );
 
 
@@ -440,17 +487,22 @@
             "🔔 Enabled";
 
 
+          alert(
+            "Notifications enabled successfully!"
+          );
+
+
           /*
-          =====================================
+          ====================================
           FUTURE BACKEND INTEGRATION
-          =====================================
+          ====================================
 
-          The token will later be sent to your
-          Google Apps Script backend together with:
+          Later we will send this token to
+          Google Apps Script together with:
 
-          - User Name
-          - User Role
-          - Device Token
+          User Name
+          User Role
+          Device Token
 
           Roles:
 
@@ -463,36 +515,49 @@
           */
 
 
-          alert(
-            "Notifications have been enabled successfully!"
-          );
-
-
         }
 
         else {
-
-          console.log(
-            "No registration token available."
-          );
 
           notificationButton.textContent =
             "🔔 Enable";
 
 
           alert(
-            "Could not register this device for notifications."
+            "No Firebase registration token was generated."
           );
 
         }
 
       }
 
+
       catch (error) {
 
         console.error(
-          "Notification Error:",
+          "================================="
+        );
+
+        console.error(
+          "NOTIFICATION SETUP ERROR:"
+        );
+
+        console.error(
           error
+        );
+
+        console.error(
+          "Error Code:",
+          error.code
+        );
+
+        console.error(
+          "Error Message:",
+          error.message
+        );
+
+        console.error(
+          "================================="
         );
 
 
@@ -501,7 +566,13 @@
 
 
         alert(
-          "Notification setup failed. Please try again."
+          "Notification setup failed: "
+          +
+          (
+            error.message
+            ||
+            "Please check the browser console."
+          )
         );
 
       }
@@ -509,89 +580,123 @@
     }
 
 
+
     /*
-    ==========================================
+    ========================================
+    FOREGROUND NOTIFICATIONS
+    ========================================
+    */
+
+    function setupForegroundMessages() {
+
+      if (!messaging) {
+
+        return;
+
+      }
+
+
+      onMessage(
+        messaging,
+
+        (payload) => {
+
+          console.log(
+            "Foreground Message:",
+            payload
+          );
+
+
+          const title =
+            payload?.notification?.title
+            ||
+            "NCA EKET Notification";
+
+
+          const options = {
+
+            body:
+              payload?.notification?.body
+              ||
+              "You have a new notification.",
+
+            icon:
+              "./icon-192.png",
+
+            badge:
+              "./icon-192.png"
+
+          };
+
+
+          if (
+            Notification.permission ===
+            "granted"
+          ) {
+
+            new Notification(
+              title,
+              options
+            );
+
+          }
+
+        }
+
+      );
+
+    }
+
+
+
+    /*
+    ========================================
     NOTIFICATION BUTTON
-    ==========================================
+    ========================================
     */
 
     notificationButton.addEventListener(
+
       "click",
+
       enableNotifications
+
     );
 
 
+
     /*
-    ==========================================
+    ========================================
     REFRESH BUTTON
-    ==========================================
+    ========================================
     */
 
     refreshButton.addEventListener(
+
       "click",
+
       () => {
 
         iframe.src =
           iframe.src;
 
       }
+
     );
+
 
 
     /*
-    ==========================================
-    FOREGROUND NOTIFICATIONS
-    ==========================================
+    ========================================
+    START FIREBASE
+    ========================================
     */
 
-    onMessage(
-      messaging,
-      (payload) => {
+    initializeFirebase();
 
-        console.log(
-          "Foreground Notification:",
-          payload
-        );
-
-
-        const title =
-          payload?.notification?.title
-          ||
-          "NCA EKET Notification";
-
-
-        const options = {
-
-          body:
-            payload?.notification?.body
-            ||
-            "You have a new notification.",
-
-          icon:
-            "./icon-192.png",
-
-          badge:
-            "./icon-192.png"
-
-        };
-
-
-        if (
-          Notification.permission ===
-          "granted"
-        ) {
-
-          new Notification(
-            title,
-            options
-          );
-
-        }
-
-      }
-    );
 
   </script>
+
 
 </body>
 </html>
