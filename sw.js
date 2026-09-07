@@ -1,243 +1,51 @@
-const CACHE_NAME =
-"nca-eket-v2";
+/*
+========================================
+NCA EKET LEGACY SERVICE WORKER
+========================================
 
-const ASSETS = [
+The main service worker is now:
 
-"./",
+firebase-messaging-sw.js
 
-"./index.html",
-
-"./manifest.json",
-
-"./icon-192.png",
-
-"./icon-512.png"
-
-];
-
-# /*
-
-# INSTALL
-
+This file is kept temporarily to prevent
+old cached versions of the application
+from causing errors.
 */
 
-self.addEventListener(
-"install",
-(event) => {
-
-```
-event.waitUntil(
-
-  caches
-    .open(CACHE_NAME)
-
-    .then(
-      (cache) => {
-
-        return cache.addAll(
-          ASSETS
-        );
-
-      }
-    )
-
-    .then(
-      () => {
-
-        return self.skipWaiting();
-
-      }
-    )
-
-);
-```
-
-}
-);
-
-# /*
-
-# ACTIVATE
-
-*/
 
 self.addEventListener(
-"activate",
-(event) => {
 
-```
-event.waitUntil(
+  "install",
 
-  caches.keys()
+  () => {
 
-    .then(
-      (cacheNames) => {
+    self.skipWaiting();
 
-        return Promise.all(
-
-          cacheNames.map(
-            (cacheName) => {
-
-              if (
-                cacheName !==
-                CACHE_NAME
-              ) {
-
-                return caches.delete(
-                  cacheName
-                );
-
-              }
-
-            }
-          )
-
-        );
-
-      }
-    )
-
-    .then(
-      () => {
-
-        return self.clients.claim();
-
-      }
-    )
+  }
 
 );
-```
 
-}
-);
-
-# /*
-
-# FETCH
-
-*/
 
 self.addEventListener(
-"fetch",
-(event) => {
 
-```
-if (
-  event.request.method !==
-  "GET"
-) {
+  "activate",
 
-  return;
+  (event) => {
 
-}
+    event.waitUntil(
 
+      self.registration.unregister()
 
-event.respondWith(
+        .then(
+          () => {
 
-  caches.match(
-    event.request
-  )
+            return self.clients.claim();
 
-    .then(
-      (cachedResponse) => {
-
-        if (
-          cachedResponse
-        ) {
-
-          return cachedResponse;
-
-        }
-
-
-        return fetch(
-          event.request
+          }
         )
 
-          .then(
-            (networkResponse) => {
+    );
 
-              if (
-                !networkResponse ||
-                networkResponse.status !== 200 ||
-                networkResponse.type !== "basic"
-              ) {
+  }
 
-                return networkResponse;
-
-              }
-
-
-              const responseCopy =
-                networkResponse.clone();
-
-
-              caches
-                .open(
-                  CACHE_NAME
-                )
-
-                .then(
-                  (cache) => {
-
-                    cache.put(
-                      event.request,
-                      responseCopy
-                    );
-
-                  }
-                );
-
-
-              return networkResponse;
-
-            }
-          )
-
-          .catch(
-            () => {
-
-              return caches.match(
-                "./index.html"
-              );
-
-            }
-          );
-
-      }
-    )
-
-);
-```
-
-}
-);
-
-# /*
-
-# MESSAGE
-
-Allows future communication
-between the application and
-the service worker.
-
-*/
-
-self.addEventListener(
-"message",
-(event) => {
-
-```
-if (
-  event.data &&
-  event.data.type ===
-  "SKIP_WAITING"
-) {
-
-  self.skipWaiting();
-
-}
-```
-
-}
 );
