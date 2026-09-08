@@ -1,47 +1,243 @@
 /**
- * NCA EKET — Firebase Messaging Service Worker.
- * Handles push notifications while the PWA tab is closed or backgrounded.
- * Must be served from the site root (e.g. /firebase-messaging-sw.js).
+ * NCA EKET — Firebase Messaging Service Worker
+ * Version 6.5
+ * Handles Firebase Cloud Messaging when the PWA is
+ * backgrounded or closed.
  */
 
-importScripts('https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js');
-importScripts('https://www.gstatic.com/firebasejs/10.13.2/firebase-messaging-compat.js');
-importScripts('./firebase-config.js');
+// Firebase SDK
+importScripts(
+  'https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js'
+);
 
-firebase.initializeApp(NCA_FIREBASE_CONFIG);
+importScripts(
+  'https://www.gstatic.com/firebasejs/10.13.2/firebase-messaging-compat.js'
+);
 
-const messaging = firebase.messaging();
+// Firebase configuration
+importScripts(
+  './firebase-config.js'
+);
 
-// Background messages (tab not focused / closed). Foreground messages
-// are handled directly in index.html via onMessage().
-messaging.onBackgroundMessage(payload => {
-  const title = (payload.notification && payload.notification.title) || 'NCA EKET Requisition';
-  const body = (payload.notification && payload.notification.body) || 'You have a new update.';
-  const link = (payload.fcmOptions && payload.fcmOptions.link) ||
-    (payload.data && payload.data.link) || '/';
 
-  self.registration.showNotification(title, {
-    body: body,
-    icon: './icon-192.png',
-    badge: './icon-192.png',
-    data: { link: link }
-  });
-});
+// ========================================
+// INITIALIZE FIREBASE
+// ========================================
 
-self.addEventListener('notificationclick', event => {
-  event.notification.close();
-  const link = (event.notification.data && event.notification.data.link) || '/';
+try {
 
-  event.waitUntil(
-    clients.matchAll({ type: 'window', includeUncontrolled: true }).then(windowClients => {
-      for (const client of windowClients) {
-        if (client.url.includes(self.registration.scope) && 'focus' in client) {
-          return client.focus();
-        }
-      }
-      if (clients.openWindow) {
-        return clients.openWindow(link);
-      }
-    })
+  if (!firebase.apps.length) {
+
+    firebase.initializeApp(NCA_FIREBASE_CONFIG);
+
+  }
+
+} catch (error) {
+
+  console.error(
+    '[NCA EKET SW] Firebase initialization error:',
+    error
   );
-});
+
+}
+
+
+// ========================================
+// INITIALIZE FIREBASE MESSAGING
+// ========================================
+
+let messaging;
+
+try {
+
+  messaging = firebase.messaging();
+
+  console.log(
+    '[NCA EKET SW] Firebase Messaging initialized'
+  );
+
+} catch (error) {
+
+  console.error(
+    '[NCA EKET SW] Messaging initialization error:',
+    error
+  );
+
+}
+
+
+// ========================================
+// BACKGROUND PUSH NOTIFICATIONS
+// ========================================
+
+if (messaging) {
+
+  messaging.onBackgroundMessage(function(payload) {
+
+    console.log(
+      '[NCA EKET SW] Background message received:',
+      payload
+    );
+
+
+    const notification =
+      payload.notification || {};
+
+
+    const title =
+      notification.title ||
+      'NCA EKET Requisition';
+
+
+    const body =
+      notification.body ||
+      'You have a new requisition update.';
+
+
+    const link =
+      (payload.fcmOptions &&
+       payload.fcmOptions.link)
+
+      ||
+
+      (payload.data &&
+       payload.data.link)
+
+      ||
+
+      './';
+
+
+    const notificationOptions = {
+
+      body: body,
+
+      icon: './icon-192.png',
+
+      badge: './icon-192.png',
+
+      tag: 'nca-eket-notification',
+
+      renotify: true,
+
+      requireInteraction: false,
+
+      data: {
+
+        link: link
+
+      }
+
+    };
+
+
+    self.registration.showNotification(
+      title,
+      notificationOptions
+    );
+
+  });
+
+}
+
+
+// ========================================
+// NOTIFICATION CLICK
+// ========================================
+
+self.addEventListener(
+  'notificationclick',
+  function(event) {
+
+    event.notification.close();
+
+
+    const link =
+      event.notification.data?.link ||
+      './';
+
+
+    event.waitUntil(
+
+      clients.matchAll({
+
+        type: 'window',
+
+        includeUncontrolled: true
+
+      })
+
+      .then(function(windowClients) {
+
+        // Focus an existing PWA window
+
+        for (
+          const client of windowClients
+        ) {
+
+          if (
+            client.url &&
+            client.url.includes(
+              self.location.origin
+            ) &&
+            'focus' in client
+          ) {
+
+            return client.focus();
+
+          }
+
+        }
+
+
+        // Open the PWA
+
+        if (clients.openWindow) {
+
+          return clients.openWindow(
+            link
+          );
+
+        }
+
+      })
+
+    );
+
+  }
+
+);
+
+
+// ========================================
+// SERVICE WORKER ACTIVATION
+// ========================================
+
+self.addEventListener(
+  'install',
+  function() {
+
+    console.log(
+      '[NCA EKET SW] Service Worker installed'
+    );
+
+    self.skipWaiting();
+
+  }
+);
+
+
+self.addEventListener(
+  'activate',
+  function(event) {
+
+    console.log(
+      '[NCA EKET SW] Service Worker activated'
+    );
+
+    event.waitUntil(
+      self.clients.claim()
+    );
+
+  }
+);
