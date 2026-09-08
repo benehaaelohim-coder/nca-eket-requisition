@@ -1,208 +1,1646 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<meta
+  name="viewport"
+  content="width=device-width, initial-scale=1.0"
+>
+
 <title>NCA EKET E-Requisition</title>
-<link rel="manifest" href="./manifest.json">
-<meta name="theme-color" content="#662D91">
+
+
+<!-- =====================================
+     PWA
+===================================== -->
+
+<link
+  rel="manifest"
+  href="./manifest.json"
+>
+
+<meta
+  name="theme-color"
+  content="#662D91"
+>
+
+
+<!-- =====================================
+     APPLE / MOBILE
+===================================== -->
+
+<meta
+  name="mobile-web-app-capable"
+  content="yes"
+>
+
+<meta
+  name="apple-mobile-web-app-capable"
+  content="yes"
+>
+
+<meta
+  name="apple-mobile-web-app-status-bar-style"
+  content="default"
+>
+
+
 <style>
-  :root{--primary:#662D91;--primary2:#4e1f70}
-  html,body{height:100%;margin:0;font-family:Arial,sans-serif}
-  .bar{background:linear-gradient(135deg,var(--primary),var(--primary2));color:#fff;padding:10px 14px;
-       display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
-  .bar b{font-size:14px}
-  .bar small{display:block;opacity:.85;font-size:11px}
-  .bar button{border:0;border-radius:8px;padding:8px 12px;background:#fff;color:var(--primary);
-              font-weight:bold;cursor:pointer;font-size:13px}
-  .bar button:disabled{opacity:.6;cursor:not-allowed}
-  #frameWrap{position:fixed;top:56px;left:0;right:0;bottom:0}
-  #portal{width:100%;height:100%;border:0}
-  @media(max-width:600px){#frameWrap{top:74px}}
+
+/* =====================================
+   ROOT
+===================================== */
+
+:root {
+
+  --primary: #662D91;
+
+  --primary-dark: #4E1F70;
+
+  --white: #FFFFFF;
+
+}
+
+
+/* =====================================
+   PAGE
+===================================== */
+
+html,
+body {
+
+  height: 100%;
+
+  margin: 0;
+
+  padding: 0;
+
+  font-family:
+
+    Arial,
+
+    sans-serif;
+
+  overflow: hidden;
+
+}
+
+
+/* =====================================
+   TOP BAR
+===================================== */
+
+.bar {
+
+  background:
+
+    linear-gradient(
+
+      135deg,
+
+      var(--primary),
+
+      var(--primary-dark)
+
+    );
+
+  color:
+
+    var(--white);
+
+  padding:
+
+    10px 14px;
+
+  display:
+
+    flex;
+
+  align-items:
+
+    center;
+
+  justify-content:
+
+    space-between;
+
+  gap:
+
+    10px;
+
+  flex-wrap:
+
+    wrap;
+
+  box-sizing:
+
+    border-box;
+
+}
+
+
+.barTitle {
+
+  display:
+
+    flex;
+
+  flex-direction:
+
+    column;
+
+  gap:
+
+    3px;
+
+}
+
+
+.barTitle b {
+
+  font-size:
+
+    14px;
+
+}
+
+
+.barTitle small {
+
+  opacity:
+
+    0.9;
+
+  font-size:
+
+    11px;
+
+}
+
+
+/* =====================================
+   NOTIFICATION BUTTON
+===================================== */
+
+.bar button {
+
+  border:
+
+    none;
+
+  border-radius:
+
+    8px;
+
+  padding:
+
+    8px 12px;
+
+  background:
+
+    var(--white);
+
+  color:
+
+    var(--primary);
+
+  font-weight:
+
+    bold;
+
+  cursor:
+
+    pointer;
+
+  font-size:
+
+    13px;
+
+  transition:
+
+    0.2s;
+
+}
+
+
+.bar button:disabled {
+
+  opacity:
+
+    0.6;
+
+  cursor:
+
+    not-allowed;
+
+}
+
+
+/* =====================================
+   PORTAL
+===================================== */
+
+#frameWrap {
+
+  position:
+
+    fixed;
+
+  top:
+
+    58px;
+
+  left:
+
+    0;
+
+  right:
+
+    0;
+
+  bottom:
+
+    0;
+
+}
+
+
+#portal {
+
+  width:
+
+    100%;
+
+  height:
+
+    100%;
+
+  border:
+
+    none;
+
+}
+
+
+/* =====================================
+   MOBILE
+===================================== */
+
+@media (max-width: 600px) {
+
+  #frameWrap {
+
+    top:
+
+      76px;
+
+  }
+
+
+  .bar {
+
+    padding:
+
+      8px 10px;
+
+  }
+
+
+  .bar button {
+
+    padding:
+
+      7px 10px;
+
+    font-size:
+
+      12px;
+
+  }
+
+}
+
 </style>
+
 </head>
+
+
 <body>
 
+
+<!-- =====================================
+     TOP BAR
+===================================== -->
+
 <div class="bar">
-  <div>
-    <b>NCA EKET E-Requisition</b>
-    <small id="statusLine">🔔 Notifications: checking…</small>
+
+  <div class="barTitle">
+
+    <b>
+      NCA EKET E-Requisition
+    </b>
+
+
+    <small
+      id="statusLine"
+    >
+
+      🔔 Notifications: checking…
+
+    </small>
+
   </div>
-  <button id="enableBtn">🔔 Enable Notifications</button>
+
+
+  <button
+    id="enableBtn"
+    type="button"
+  >
+
+    🔔 Enable Notifications
+
+  </button>
+
+
 </div>
 
-<div id="frameWrap">
-  <iframe id="portal" src="NCA_APPS_SCRIPT_URL_PLACEHOLDER" allow="clipboard-write"></iframe>
+
+
+<!-- =====================================
+     APPS SCRIPT PORTAL
+===================================== -->
+
+<div
+  id="frameWrap"
+>
+
+  <iframe
+
+    id="portal"
+
+    src=""
+
+    allow="clipboard-write"
+
+  ></iframe>
+
 </div>
 
-<script src="./firebase-config.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-messaging-compat.js"></script>
+
+
+<!-- =====================================
+     FIREBASE CONFIG
+===================================== -->
+
+<script
+  src="./firebase-config.js"
+></script>
+
+
+
+<!-- =====================================
+     FIREBASE SDK
+===================================== -->
+
+<script
+  src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js"
+></script>
+
+
+<script
+  src="https://www.gstatic.com/firebasejs/10.13.2/firebase-messaging-compat.js"
+></script>
+
+
+
 <script>
-/**
- * NCA EKET GitHub Pages PWA shell.
- *
- * This page's ONLY job is to:
- *  1. Get permission + an FCM device token from the browser (this
- *     requires a real user click, which only works at THIS top level —
- *     the Apps Script portal is sandboxed inside an <iframe> and cannot
- *     request notification permission itself).
- *  2. Hand that token to the Apps Script portal (running in the iframe
- *     below) via postMessage, so it can save the token against the
- *     logged-in management user.
- *
- * Before deploying: fill in the placeholder values in firebase-config.js
- * and replace NCA_APPS_SCRIPT_URL_PLACEHOLDER below with your deployed
- * Apps Script /exec URL (also settable via firebase-config.js's
- * NCA_APPS_SCRIPT_URL if you prefer — see bottom of this script).
- */
 
-const statusLine = document.getElementById('statusLine');
-const enableBtn = document.getElementById('enableBtn');
-const portalFrame = document.getElementById('portal');
+/* =====================================
+   NCA EKET
+   GITHUB PWA SHELL
 
-// If the iframe src still has the placeholder, swap in the configured URL.
-if (portalFrame.getAttribute('src') === 'NCA_APPS_SCRIPT_URL_PLACEHOLDER') {
-  portalFrame.src = NCA_APPS_SCRIPT_URL;
-}
+   VERSION 6.6
+===================================== */
 
-let messaging = null;
-let cachedToken = localStorage.getItem('nca_fcm_token') || null;
 
-function configLooksReal() {
-  return NCA_FIREBASE_CONFIG.apiKey && NCA_FIREBASE_CONFIG.apiKey.indexOf('YOUR_') !== 0 &&
-         NCA_FCM_VAPID_KEY && NCA_FCM_VAPID_KEY.indexOf('YOUR_') !== 0;
-}
+"use strict";
+
+
+
+/* =====================================
+   ELEMENTS
+===================================== */
+
+const statusLine =
+  document.getElementById(
+    "statusLine"
+  );
+
+
+const enableBtn =
+  document.getElementById(
+    "enableBtn"
+  );
+
+
+const portalFrame =
+  document.getElementById(
+    "portal"
+  );
+
+
+
+/* =====================================
+   CONFIGURATION
+===================================== */
+
+const APPS_SCRIPT_URL =
+  self.NCA_APPS_SCRIPT_URL;
+
+
+const SERVICE_WORKER_URL =
+  "./firebase-messaging-sw.js";
+
+
+const TOKEN_STORAGE_KEY =
+  "nca_eket_fcm_token";
+
+
+
+/* =====================================
+   GLOBAL VARIABLES
+===================================== */
+
+let messaging =
+  null;
+
+
+let serviceWorkerRegistration =
+  null;
+
+
+let cachedToken =
+  localStorage.getItem(
+    TOKEN_STORAGE_KEY
+  );
+
+
+let firebaseReady =
+  false;
+
+
+
+/* =====================================
+   SET STATUS
+===================================== */
 
 function setStatus(text) {
-  statusLine.textContent = text;
+
+  statusLine.textContent =
+    text;
+
 }
+
+
+
+/* =====================================
+   CHECK CONFIG
+===================================== */
+
+function configLooksReal() {
+
+  return (
+
+    self.NCA_FIREBASE_CONFIG
+
+    &&
+
+    self.NCA_FIREBASE_CONFIG.apiKey
+
+    &&
+
+    !self.NCA_FIREBASE_CONFIG.apiKey.startsWith(
+      "YOUR_"
+    )
+
+    &&
+
+    self.NCA_FCM_VAPID_KEY
+
+    &&
+
+    !self.NCA_FCM_VAPID_KEY.startsWith(
+      "YOUR_"
+    )
+
+  );
+
+}
+
+
+
+/* =====================================
+   LOAD APPS SCRIPT PORTAL
+===================================== */
+
+function loadPortal() {
+
+  if (
+
+    !APPS_SCRIPT_URL
+
+    ||
+
+    APPS_SCRIPT_URL.startsWith(
+      "YOUR_"
+    )
+
+  ) {
+
+    console.error(
+      "[NCA EKET] Apps Script URL missing"
+    );
+
+
+    setStatus(
+      "⚠️ Apps Script URL not configured"
+    );
+
+
+    return;
+
+  }
+
+
+  portalFrame.src =
+    APPS_SCRIPT_URL;
+
+
+  console.log(
+    "[NCA EKET] Portal loaded"
+  );
+
+}
+
+
+
+/* =====================================
+   REGISTER SERVICE WORKER
+===================================== */
+
+async function registerServiceWorker() {
+
+  if (
+
+    !(
+      "serviceWorker"
+      in
+      navigator
+    )
+
+  ) {
+
+    throw new Error(
+      "Service Workers are not supported by this browser."
+    );
+
+  }
+
+
+  console.log(
+    "[NCA EKET] Registering Service Worker..."
+  );
+
+
+  serviceWorkerRegistration =
+    await navigator.serviceWorker.register(
+
+      SERVICE_WORKER_URL
+
+    );
+
+
+  await navigator.serviceWorker.ready;
+
+
+  console.log(
+    "[NCA EKET] Service Worker ready:",
+    serviceWorkerRegistration
+  );
+
+
+  return serviceWorkerRegistration;
+
+}
+
+
+
+/* =====================================
+   INITIALIZE FIREBASE
+===================================== */
 
 async function initFirebase() {
-  if (!configLooksReal()) {
-    setStatus('⚠️ Firebase config not set (edit firebase-config.js)');
-    enableBtn.disabled = true;
-    return;
-  }
-
-  firebase.initializeApp(NCA_FIREBASE_CONFIG);
-  messaging = firebase.messaging();
-
-  // Foreground push (tab open and focused): show a native notification
-  // ourselves, since onMessage() does not auto-display one.
-  messaging.onMessage(payload => {
-    const title = (payload.notification && payload.notification.title) || 'NCA EKET Requisition';
-    const body = (payload.notification && payload.notification.body) || '';
-    if (Notification.permission === 'granted') {
-      new Notification(title, { body: body, icon: './icon-192.png' });
-    }
-  });
-
-  if (Notification.permission === 'granted' && cachedToken) {
-    setStatus('🔔 Notifications: enabled on this device');
-    enableBtn.textContent = '🔔 Notifications Enabled';
-  } else if (Notification.permission === 'denied') {
-    setStatus('🔔 Notifications: blocked in browser settings');
-  } else {
-    setStatus('🔔 Notifications: not enabled yet');
-  }
-}
-
-async function enableNotifications() {
-  if (!messaging) { setStatus('⚠️ Firebase is not configured yet.'); return; }
-
-  enableBtn.disabled = true;
-  setStatus('🔔 Requesting permission…');
 
   try {
-    const permission = await Notification.requestPermission();
 
-    if (permission !== 'granted') {
-      setStatus('🔔 Notifications: permission not granted');
-      enableBtn.disabled = false;
+
+    /* -----------------------------
+       CHECK CONFIG
+    ----------------------------- */
+
+    if (
+
+      !configLooksReal()
+
+    ) {
+
+      setStatus(
+        "⚠️ Firebase configuration missing"
+      );
+
+
+      enableBtn.disabled =
+        true;
+
+
       return;
+
     }
 
-    const registration = await navigator.serviceWorker.register('./firebase-messaging-sw.js');
-    await navigator.serviceWorker.ready;
-    const token = await messaging.getToken({
-      vapidKey: NCA_FCM_VAPID_KEY,
-      serviceWorkerRegistration: registration
-    });
 
-    if (!token) throw new Error('No token was returned by Firebase.');
 
-    cachedToken = token;
-    localStorage.setItem('nca_fcm_token', token);
+    /* -----------------------------
+       INITIALIZE FIREBASE
+    ----------------------------- */
 
-    setStatus('🔔 Notifications: enabled on this device');
-    enableBtn.textContent = '🔔 Notifications Enabled';
+    if (
 
-    // If the management portal is already logged in and waiting, hand
-    // the token over immediately.
-    portalFrame.contentWindow.postMessage({ type: 'NCA_EKET_FCM_TOKEN', token: token }, '*');
+      !firebase.apps.length
 
-  } catch (error) {
-    console.error(error);
-    setStatus('🔔 Could not enable notifications: ' + error.message);
-  } finally {
-    enableBtn.disabled = false;
+    ) {
+
+      firebase.initializeApp(
+
+        self.NCA_FIREBASE_CONFIG
+
+      );
+
+    }
+
+
+    firebaseReady =
+      true;
+
+
+
+    /* -----------------------------
+       INITIALIZE MESSAGING
+    ----------------------------- */
+
+    messaging =
+      firebase.messaging();
+
+
+
+    console.log(
+      "[NCA EKET] Firebase Messaging initialized"
+    );
+
+
+
+    /* -----------------------------
+       REGISTER SERVICE WORKER
+    ----------------------------- */
+
+    try {
+
+      await registerServiceWorker();
+
+
+    } catch (swError) {
+
+      console.error(
+        "[NCA EKET] Service Worker error:",
+        swError
+      );
+
+
+      setStatus(
+        "⚠️ Notification service unavailable"
+      );
+
+    }
+
+
+
+    /* -----------------------------
+       FOREGROUND MESSAGE
+    ----------------------------- */
+
+    messaging.onMessage(
+
+      function(payload) {
+
+
+        console.log(
+          "[NCA EKET] Foreground message:",
+          payload
+        );
+
+
+        const title =
+
+          payload.notification?.title
+
+          ||
+
+          "NCA EKET Requisition";
+
+
+        const body =
+
+          payload.notification?.body
+
+          ||
+
+          "You have a new requisition update.";
+
+
+
+        if (
+
+          Notification.permission
+          ===
+          "granted"
+
+        ) {
+
+          new Notification(
+
+            title,
+
+            {
+
+              body:
+
+                body,
+
+
+              icon:
+
+                "./icon-192.png"
+
+
+            }
+
+          );
+
+        }
+
+
+      }
+
+    );
+
+
+
+    /* -----------------------------
+       CHECK PERMISSION
+    ----------------------------- */
+
+    updateNotificationStatus();
+
+
   }
+
+  catch (error) {
+
+
+    console.error(
+      "[NCA EKET] Firebase initialization failed:",
+      error
+    );
+
+
+    setStatus(
+      "⚠️ Firebase initialization failed"
+    );
+
+
+  }
+
 }
 
-enableBtn.addEventListener('click', enableNotifications);
 
-// Bridge: relay messages between the Apps Script portal (iframe) and
-// Firebase (this top-level page).
-window.addEventListener('message', async event => {
-  const data = event.data || {};
-  const replyTo = event.source; // reply to whichever frame actually sent this, not a stale reference
 
-  console.log('[NCA PWA] received message:', data.type, 'from', event.origin);
+/* =====================================
+   UPDATE STATUS
+===================================== */
 
-  if (data.type === 'NCA_EKET_PORTAL_READY') {
-    // No-op — just confirms the iframe finished loading and can receive messages.
+function updateNotificationStatus() {
+
+
+  if (
+
+    !(
+      "Notification"
+      in
+      window
+    )
+
+  ) {
+
+    setStatus(
+      "⚠️ Notifications not supported"
+    );
+
+
+    enableBtn.disabled =
+      true;
+
+
     return;
+
   }
 
-  if (data.type === 'NCA_EKET_REQUEST_FCM_TOKEN') {
-    console.log('[NCA PWA] token requested. cachedToken present:', !!cachedToken, 'permission:', Notification.permission);
 
-    if (cachedToken && Notification.permission === 'granted') {
-      console.log('[NCA PWA] replying with cached token');
-      replyTo.postMessage({ type: 'NCA_EKET_FCM_TOKEN', token: cachedToken }, '*');
+
+  if (
+
+    Notification.permission
+    ===
+    "denied"
+
+  ) {
+
+    setStatus(
+      "🔕 Notifications blocked in browser settings"
+    );
+
+
+    return;
+
+  }
+
+
+
+  if (
+
+    Notification.permission
+    ===
+    "granted"
+
+    &&
+
+    cachedToken
+
+  ) {
+
+    setStatus(
+      "🔔 Notifications: registered"
+    );
+
+
+    enableBtn.textContent =
+      "🔔 Notifications Enabled";
+
+
+    return;
+
+  }
+
+
+
+  if (
+
+    Notification.permission
+    ===
+    "granted"
+
+  ) {
+
+    setStatus(
+      "🔔 Permission granted — registering device..."
+    );
+
+
+    return;
+
+  }
+
+
+
+  setStatus(
+    "🔔 Notifications: not registered"
+  );
+
+
+}
+
+
+
+/* =====================================
+   GET FCM TOKEN
+===================================== */
+
+async function getFCMToken() {
+
+
+  if (
+
+    !messaging
+
+  ) {
+
+    throw new Error(
+      "Firebase Messaging is not initialized."
+    );
+
+  }
+
+
+
+  if (
+
+    !serviceWorkerRegistration
+
+  ) {
+
+    await registerServiceWorker();
+
+  }
+
+
+
+  console.log(
+    "[NCA EKET] Getting FCM token..."
+  );
+
+
+  const token =
+
+    await messaging.getToken({
+
+      vapidKey:
+
+        self.NCA_FCM_VAPID_KEY,
+
+
+      serviceWorkerRegistration:
+
+        serviceWorkerRegistration
+
+
+    });
+
+
+
+  if (
+
+    !token
+
+  ) {
+
+    throw new Error(
+      "Firebase did not return a device token."
+    );
+
+  }
+
+
+
+  cachedToken =
+    token;
+
+
+
+  localStorage.setItem(
+
+    TOKEN_STORAGE_KEY,
+
+    token
+
+  );
+
+
+
+  console.log(
+    "[NCA EKET] FCM token created"
+  );
+
+
+  return token;
+
+}
+
+
+
+/* =====================================
+   SEND TOKEN TO PORTAL
+===================================== */
+
+function sendTokenToPortal(token) {
+
+
+  if (
+
+    !portalFrame
+
+    ||
+
+    !portalFrame.contentWindow
+
+  ) {
+
+    console.warn(
+      "[NCA EKET] Portal is not ready yet"
+    );
+
+
+    return;
+
+  }
+
+
+
+  portalFrame.contentWindow.postMessage(
+
+    {
+
+      type:
+
+        "NCA_EKET_FCM_TOKEN",
+
+
+      token:
+
+        token
+
+    },
+
+
+    "*"
+
+  );
+
+
+  console.log(
+    "[NCA EKET] Token sent to portal"
+  );
+
+}
+
+
+
+/* =====================================
+   ENABLE NOTIFICATIONS
+===================================== */
+
+async function enableNotifications() {
+
+
+  if (
+
+    !firebaseReady
+
+    ||
+
+    !messaging
+
+  ) {
+
+    setStatus(
+      "⚠️ Firebase is still loading..."
+    );
+
+
+    return;
+
+  }
+
+
+
+  enableBtn.disabled =
+    true;
+
+
+  setStatus(
+    "🔔 Requesting notification permission..."
+  );
+
+
+
+  try {
+
+
+    /* -----------------------------
+       REQUEST PERMISSION
+    ----------------------------- */
+
+    const permission =
+
+      await Notification.requestPermission();
+
+
+
+    if (
+
+      permission
+      !==
+      "granted"
+
+    ) {
+
+      updateNotificationStatus();
+
+
       return;
+
     }
 
-    if (Notification.permission === 'granted' && messaging) {
-      // Permission already granted from a previous visit — fetching a
-      // token again does not require a fresh user gesture.
-      try {
-        const registration = await navigator.serviceWorker.register('./firebase-messaging-sw.js');
-        await navigator.serviceWorker.ready;
-        const token = await messaging.getToken({ vapidKey: NCA_FCM_VAPID_KEY, serviceWorkerRegistration: registration });
-        cachedToken = token;
-        localStorage.setItem('nca_fcm_token', token);
-        replyTo.postMessage({ type: 'NCA_EKET_FCM_TOKEN', token: token }, '*');
-      } catch (error) {
-        replyTo.postMessage({ type: 'NCA_EKET_FCM_TOKEN_ERROR', message: error.message }, '*');
+
+
+    setStatus(
+      "🔔 Registering this device..."
+    );
+
+
+
+    /* -----------------------------
+       GET FCM TOKEN
+    ----------------------------- */
+
+    const token =
+
+      await getFCMToken();
+
+
+
+    /* -----------------------------
+       SUCCESS
+    ----------------------------- */
+
+    setStatus(
+      "🔔 Notifications: registered"
+    );
+
+
+    enableBtn.textContent =
+      "🔔 Notifications Enabled";
+
+
+
+    /* -----------------------------
+       SEND TO PORTAL
+    ----------------------------- */
+
+    sendTokenToPortal(
+      token
+    );
+
+
+  }
+
+
+  catch (error) {
+
+
+    console.error(
+      "[NCA EKET] Notification error:",
+      error
+    );
+
+
+    cachedToken =
+      null;
+
+
+    localStorage.removeItem(
+      TOKEN_STORAGE_KEY
+    );
+
+
+    setStatus(
+
+      "⚠️ Notification registration failed"
+
+    );
+
+
+  }
+
+
+  finally {
+
+
+    enableBtn.disabled =
+      false;
+
+
+  }
+
+
+}
+
+
+
+/* =====================================
+   BUTTON CLICK
+===================================== */
+
+enableBtn.addEventListener(
+
+  "click",
+
+  enableNotifications
+
+);
+
+
+
+/* =====================================
+   MESSAGE BRIDGE
+===================================== */
+
+window.addEventListener(
+
+  "message",
+
+  async function(event) {
+
+
+    const data =
+      event.data
+      ||
+      {};
+
+
+    const replyTo =
+      event.source;
+
+
+
+    console.log(
+
+      "[NCA EKET] Message:",
+
+      data.type,
+
+      "Origin:",
+
+      event.origin
+
+    );
+
+
+
+    /* -----------------------------
+       PORTAL READY
+    ----------------------------- */
+
+    if (
+
+      data.type
+      ===
+      "NCA_EKET_PORTAL_READY"
+
+    ) {
+
+      console.log(
+        "[NCA EKET] Portal ready"
+      );
+
+
+      if (
+
+        cachedToken
+
+        &&
+
+        Notification.permission
+        ===
+        "granted"
+
+      ) {
+
+        sendTokenToPortal(
+          cachedToken
+        );
+
       }
+
+
       return;
+
     }
 
-    replyTo.postMessage({
-      type: 'NCA_EKET_FCM_TOKEN_ERROR',
-      message: 'Tap the 🔔 Enable Notifications button at the top of this page first.'
-    }, '*');
-    return;
+
+
+    /* -----------------------------
+       PORTAL REQUESTS TOKEN
+    ----------------------------- */
+
+    if (
+
+      data.type
+      ===
+      "NCA_EKET_REQUEST_FCM_TOKEN"
+
+    ) {
+
+
+      console.log(
+        "[NCA EKET] Portal requested FCM token"
+      );
+
+
+
+      if (
+
+        cachedToken
+
+        &&
+
+        Notification.permission
+        ===
+        "granted"
+
+      ) {
+
+
+        replyTo.postMessage(
+
+          {
+
+            type:
+
+              "NCA_EKET_FCM_TOKEN",
+
+
+            token:
+
+              cachedToken
+
+
+          },
+
+          "*"
+
+        );
+
+
+        return;
+
+      }
+
+
+
+      /* -----------------------------
+         GET NEW TOKEN
+      ----------------------------- */
+
+      if (
+
+        Notification.permission
+        ===
+        "granted"
+
+        &&
+
+        messaging
+
+      ) {
+
+
+        try {
+
+
+          const token =
+
+            await getFCMToken();
+
+
+
+          replyTo.postMessage(
+
+            {
+
+              type:
+
+                "NCA_EKET_FCM_TOKEN",
+
+
+              token:
+
+                token
+
+
+            },
+
+            "*"
+
+          );
+
+
+        }
+
+
+        catch (error) {
+
+
+          console.error(
+            error
+          );
+
+
+          replyTo.postMessage(
+
+            {
+
+              type:
+
+                "NCA_EKET_FCM_TOKEN_ERROR",
+
+
+              message:
+
+                error.message
+
+
+            },
+
+            "*"
+
+          );
+
+
+        }
+
+
+        return;
+
+      }
+
+
+
+      /* -----------------------------
+         USER MUST ENABLE
+      ----------------------------- */
+
+      replyTo.postMessage(
+
+        {
+
+          type:
+
+            "NCA_EKET_FCM_TOKEN_ERROR",
+
+
+          message:
+
+            "Tap Enable Notifications first."
+
+        },
+
+        "*"
+
+      );
+
+
+      return;
+
+    }
+
+
+
+    /* -----------------------------
+       DEVICE REGISTERED
+    ----------------------------- */
+
+    if (
+
+      data.type
+      ===
+      "NCA_EKET_NOTIFICATION_REGISTERED"
+
+    ) {
+
+
+      setStatus(
+
+        "🔔 Notifications: registered to your account"
+
+      );
+
+
+      enableBtn.textContent =
+        "🔔 Notifications Enabled";
+
+
+      return;
+
+    }
+
+
+
+    /* -----------------------------
+       REGISTRATION ERROR
+    ----------------------------- */
+
+    if (
+
+      data.type
+      ===
+      "NCA_EKET_NOTIFICATION_ERROR"
+
+    ) {
+
+
+      setStatus(
+
+        "⚠️ Notification registration error"
+
+      );
+
+
+      return;
+
+    }
+
+
   }
 
-  if (data.type === 'NCA_EKET_NOTIFICATION_REGISTERED') {
-    setStatus('🔔 Notifications: device registered to your account');
-  }
-});
+);
 
-initFirebase();
+
+
+/* =====================================
+   PORTAL LOAD EVENT
+===================================== */
+
+portalFrame.addEventListener(
+
+  "load",
+
+  function() {
+
+
+    console.log(
+      "[NCA EKET] Portal loaded successfully"
+    );
+
+
+    if (
+
+      cachedToken
+
+      &&
+
+      Notification.permission
+      ===
+      "granted"
+
+    ) {
+
+
+      sendTokenToPortal(
+        cachedToken
+      );
+
+    }
+
+
+  }
+
+);
+
+
+
+/* =====================================
+   START APPLICATION
+===================================== */
+
+(async function startApp() {
+
+
+  console.log(
+    "[NCA EKET] Starting PWA..."
+  );
+
+
+  loadPortal();
+
+
+  await initFirebase();
+
+
+})();
+
 </script>
+
+
 </body>
+
 </html>
