@@ -158,13 +158,18 @@ window.addEventListener('message', async event => {
   const data = event.data || {};
   const replyTo = event.source; // reply to whichever frame actually sent this, not a stale reference
 
+  console.log('[NCA PWA] received message:', data.type, 'from', event.origin);
+
   if (data.type === 'NCA_EKET_PORTAL_READY') {
     // No-op — just confirms the iframe finished loading and can receive messages.
     return;
   }
 
   if (data.type === 'NCA_EKET_REQUEST_FCM_TOKEN') {
+    console.log('[NCA PWA] token requested. cachedToken present:', !!cachedToken, 'permission:', Notification.permission);
+
     if (cachedToken && Notification.permission === 'granted') {
+      console.log('[NCA PWA] replying with cached token');
       replyTo.postMessage({ type: 'NCA_EKET_FCM_TOKEN', token: cachedToken }, '*');
       return;
     }
