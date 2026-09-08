@@ -156,6 +156,7 @@ enableBtn.addEventListener('click', enableNotifications);
 // Firebase (this top-level page).
 window.addEventListener('message', async event => {
   const data = event.data || {};
+  const replyTo = event.source; // reply to whichever frame actually sent this, not a stale reference
 
   if (data.type === 'NCA_EKET_PORTAL_READY') {
     // No-op — just confirms the iframe finished loading and can receive messages.
@@ -164,7 +165,7 @@ window.addEventListener('message', async event => {
 
   if (data.type === 'NCA_EKET_REQUEST_FCM_TOKEN') {
     if (cachedToken && Notification.permission === 'granted') {
-      portalFrame.contentWindow.postMessage({ type: 'NCA_EKET_FCM_TOKEN', token: cachedToken }, '*');
+      replyTo.postMessage({ type: 'NCA_EKET_FCM_TOKEN', token: cachedToken }, '*');
       return;
     }
 
@@ -177,14 +178,14 @@ window.addEventListener('message', async event => {
         const token = await messaging.getToken({ vapidKey: NCA_FCM_VAPID_KEY, serviceWorkerRegistration: registration });
         cachedToken = token;
         localStorage.setItem('nca_fcm_token', token);
-        portalFrame.contentWindow.postMessage({ type: 'NCA_EKET_FCM_TOKEN', token: token }, '*');
+        replyTo.postMessage({ type: 'NCA_EKET_FCM_TOKEN', token: token }, '*');
       } catch (error) {
-        portalFrame.contentWindow.postMessage({ type: 'NCA_EKET_FCM_TOKEN_ERROR', message: error.message }, '*');
+        replyTo.postMessage({ type: 'NCA_EKET_FCM_TOKEN_ERROR', message: error.message }, '*');
       }
       return;
     }
 
-    portalFrame.contentWindow.postMessage({
+    replyTo.postMessage({
       type: 'NCA_EKET_FCM_TOKEN_ERROR',
       message: 'Tap the 🔔 Enable Notifications button at the top of this page first.'
     }, '*');
