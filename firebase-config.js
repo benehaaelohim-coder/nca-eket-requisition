@@ -1,7 +1,7 @@
 /**
  * ==========================================
  * NCA EKET — FIREBASE CONFIGURATION
- * Version 6.5
+ * Version 6.7
  * ==========================================
  *
  * Used by:
@@ -62,7 +62,7 @@ self.NCA_FCM_VAPID_KEY =
  */
 
 self.NCA_APPS_SCRIPT_URL =
-  "https://script.google.com/macros/s/AKfycbzH_waWPIkybt-lrTq8T7pRyiPh2veOquurIzcVnDux67oBLexheMj9SNluILc9up8S/exec";
+  "https://script.google.com/macros/s/AKfycbzonygCenDGufNEwecUW8VI1-698tD11wNmzj1InljFrKUe4CdKb5y4seUu2CfcIyAK/exec";
 
 
 /**
