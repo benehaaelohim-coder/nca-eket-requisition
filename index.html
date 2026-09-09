@@ -1,606 +1,260 @@
 <!DOCTYPE html>
-
 <html lang="en">
-
 <head>
 
 <meta charset="UTF-8">
-
-<meta
-name="viewport"
-content="width=device-width,initial-scale=1">
-
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>NCA EKET E-Requisition</title>
 
-
-<link
-rel="manifest"
-href="manifest.json">
-
-
-<meta
-name="theme-color"
-content="#662D91">
-
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#662D91">
 
 <style>
 
-*{
-box-sizing:border-box;
-}
+*{ box-sizing:border-box; }
 
 body{
-
 margin:0;
-
-font-family:
-Arial,
-sans-serif;
-
+font-family: Arial, sans-serif;
 background:#f4f5f8;
-
 }
-
 
 #topbar{
-
 height:60px;
-
-background:
-linear-gradient(
-135deg,
-#662D91,
-#4e1f70
-);
-
+background: linear-gradient(135deg,#662D91,#4e1f70);
 color:white;
-
 display:flex;
-
 align-items:center;
-
-justify-content:
-space-between;
-
-padding:
-0 15px;
-
+justify-content:space-between;
+padding: 0 15px;
 }
 
-
-.brand{
-
-font-weight:bold;
-
-font-size:15px;
-
-}
-
+.brand{ font-weight:bold; font-size:15px; }
 
 button{
-
 border:0;
-
-padding:
-9px 12px;
-
+padding: 9px 12px;
 border-radius:8px;
-
 cursor:pointer;
-
 font-weight:bold;
-
 }
 
-
-#notifyBtn{
-
-background:white;
-
-color:#662D91;
-
-}
-
+#notifyBtn{ background:white; color:#662D91; }
 
 #status{
-
 font-size:11px;
-
 padding:5px 10px;
-
 background:white;
-
 color:#333;
-
 text-align:center;
-
 }
 
-
 iframe{
-
 width:100%;
-
-height:
-calc(100vh - 85px);
-
+height: calc(100vh - 85px);
 border:0;
-
 background:white;
-
 }
 
 </style>
-
 </head>
-
 
 <body>
 
-
 <div id="topbar">
-
-<div class="brand">
-
-NCA EKET E-REQUISITION
-
+<div class="brand">NCA EKET E-REQUISITION</div>
+<button id="notifyBtn">🔔 Enable Notifications</button>
 </div>
 
+<div id="status">Loading system...</div>
 
-<button
-id="notifyBtn">
-
-🔔 Enable Notifications
-
-</button>
-
-</div>
-
-
-<div id="status">
-
-Loading system...
-
-</div>
-
-
-<iframe
-id="portal"
-src="YOUR_APPS_SCRIPT_WEB_APP_URL">
-</iframe>
-
+<iframe id="portal" src="YOUR_APPS_SCRIPT_WEB_APP_URL"></iframe>
 
 <script type="module">
 
-/*
-================================================
-FIREBASE IMPORTS
-================================================
-*/
+/* ================================================
+   FIREBASE IMPORTS
+================================================ */
 
-import {
-initializeApp
-}
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-app.js";
+import { getMessaging, getToken, onMessage } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-messaging.js";
 
-from
+/* ================================================
+   YOUR FIREBASE CONFIGURATION
+   (same values as firebase-config.js / firebase-messaging-sw.js)
+================================================ */
 
-"https://www.gstatic.com/firebasejs/10.13.2/firebase-app.js";
-
-
-import {
-
-getMessaging,
-
-getToken,
-
-onMessage
-
-}
-
-from
-
-"https://www.gstatic.com/firebasejs/10.13.2/firebase-messaging.js";
-
-
-/*
-================================================
-YOUR FIREBASE CONFIGURATION
-PASTE YOUR EXISTING CONFIGURATION HERE
-================================================
-*/
-
-const firebaseConfig={
-
-apiKey:
-"YOUR_API_KEY",
-
-authDomain:
-"YOUR_AUTH_DOMAIN",
-
-projectId:
-"YOUR_PROJECT_ID",
-
-storageBucket:
-"YOUR_STORAGE_BUCKET",
-
-messagingSenderId:
-"YOUR_MESSAGING_SENDER_ID",
-
-appId:
-"YOUR_APP_ID"
-
+const firebaseConfig = {
+  apiKey: "AIzaSyBTIW86UDfX_vwomDtlsCbgzdjWMR5LbKY",
+  authDomain: "nca-eket-procurement.firebaseapp.com",
+  projectId: "nca-eket-procurement",
+  storageBucket: "nca-eket-procurement.firebasestorage.app",
+  messagingSenderId: "821123646276",
+  appId: "1:821123646276:web:e2b09bfe7c5429d65a8d11"
 };
 
+/* ================================================
+   FIREBASE
+================================================ */
 
-/*
-================================================
-FIREBASE
-================================================
-*/
+const app = initializeApp(firebaseConfig);
+const messaging = getMessaging(app);
 
-const app=
+const notifyBtn = document.getElementById('notifyBtn');
+const status = document.getElementById('status');
+const portal = document.getElementById('portal');
 
-initializeApp(
-firebaseConfig
-);
+let currentToken = '';
 
-
-const messaging=
-
-getMessaging(app);
-
-
-const notifyBtn=
-
-document.getElementById(
-'notifyBtn'
-);
-
-
-const status=
-
-document.getElementById(
-'status'
-);
-
-
-const portal=
-
-document.getElementById(
-'portal'
-);
-
-
-let currentToken='';
-
-
-/*
-================================================
-REGISTER SERVICE WORKER
-================================================
-*/
+/* ================================================
+   REGISTER SERVICE WORKER
+================================================ */
 
 async function registerServiceWorker(){
-
-return await navigator
-.serviceWorker
-.register(
-'firebase-messaging-sw.js'
-);
-
+  return await navigator.serviceWorker.register('firebase-messaging-sw.js');
 }
 
-
-/*
-================================================
-ENABLE NOTIFICATIONS
-================================================
-*/
+/* ================================================
+   ENABLE NOTIFICATIONS
+================================================ */
 
 async function enableNotifications(){
+  try{
 
-try{
+    if (!('Notification' in window)){
+      throw new Error('Notifications are not supported by this browser.');
+    }
 
-if(
-!('Notification' in window)
-){
+    const permission = await Notification.requestPermission();
 
-throw new Error(
-'Notifications are not supported by this browser.'
-);
+    if (permission !== 'granted'){
+      throw new Error('Notification permission was not granted.');
+    }
 
+    status.textContent = 'Preparing notifications...';
+
+    const registration = await registerServiceWorker();
+
+    const token = await getToken(messaging, {
+      serviceWorkerRegistration: registration,
+      // NOTE: replace with your real VAPID key from
+      // Firebase Console -> Project Settings -> Cloud Messaging -> Web Push certificates
+      vapidKey: "YOUR_VAPID_KEY"
+    });
+
+    if (!token){
+      throw new Error('Unable to generate notification token.');
+    }
+
+    currentToken = token;
+
+    localStorage.setItem('NCA_EKET_FCM_TOKEN', token);
+
+    notifyBtn.textContent = '🔔 Notifications Enabled';
+    status.textContent = 'Notifications enabled successfully.';
+
+    sendTokenToPortal();
+
+  }catch(error){
+
+    console.error(error);
+    status.textContent = 'Notification error: ' + error.message;
+
+  }
 }
 
-
-const permission=
-
-await Notification
-.requestPermission();
-
-
-if(
-permission !== 'granted'
-){
-
-throw new Error(
-'Notification permission was not granted.'
-);
-
-}
-
-
-status.textContent=
-'Preparing notifications...';
-
-
-const registration=
-
-await registerServiceWorker();
-
-
-const token=
-
-await getToken(
-
-messaging,
-
-{
-
-serviceWorkerRegistration:
-registration,
-
-vapidKey:
-"YOUR_VAPID_KEY"
-
-}
-
-);
-
-
-if(!token){
-
-throw new Error(
-'Unable to generate notification token.'
-);
-
-}
-
-
-currentToken=token;
-
-
-localStorage.setItem(
-
-'NCA_EKET_FCM_TOKEN',
-
-token
-
-);
-
-
-notifyBtn.textContent=
-'🔔 Notifications Enabled';
-
-
-status.textContent=
-'Notifications enabled successfully.';
-
-
-sendTokenToPortal();
-
-
-}catch(error){
-
-console.error(error);
-
-
-status.textContent=
-'Notification error: '+
-error.message;
-
-}
-
-}
-
-
-/*
-================================================
-SEND TOKEN TO APPS SCRIPT
-================================================
-*/
+/* ================================================
+   SEND TOKEN TO APPS SCRIPT PORTAL
+================================================ */
 
 function sendTokenToPortal(){
 
-if(!currentToken){
+  if (!currentToken){
+    currentToken = localStorage.getItem('NCA_EKET_FCM_TOKEN') || '';
+  }
 
-currentToken=
+  if (!currentToken){
+    portal.contentWindow.postMessage(
+      { type: 'NCA_EKET_FCM_TOKEN_ERROR', message: 'No Firebase notification token available.' },
+      '*'
+    );
+    return;
+  }
 
-localStorage.getItem(
-'NCA_EKET_FCM_TOKEN'
-) || '';
-
-}
-
-
-if(!currentToken){
-
-portal.contentWindow.postMessage(
-
-{
-
-type:
-'NCA_EKET_FCM_TOKEN_ERROR',
-
-message:
-'No Firebase notification token available.'
-
-},
-
-'*'
-
-);
-
-return;
+  portal.contentWindow.postMessage(
+    { type: 'NCA_EKET_FCM_TOKEN', token: currentToken },
+    '*'
+  );
 
 }
 
+/* ================================================
+   LISTEN FOR PORTAL REQUESTS
+================================================ */
 
-portal.contentWindow.postMessage(
+window.addEventListener('message', event => {
 
-{
+  const data = event.data || {};
 
-type:
-'NCA_EKET_FCM_TOKEN',
+  if (data.type === 'NCA_EKET_REQUEST_FCM_TOKEN'){
+    sendTokenToPortal();
+  }
 
-token:
-currentToken
+  if (data.type === 'NCA_EKET_PORTAL_READY'){
+    status.textContent = 'NCA EKET System Ready.';
+  }
 
-},
+});
 
-'*'
+/* ================================================
+   ENABLE BUTTON
+================================================ */
 
-);
+notifyBtn.addEventListener('click', enableNotifications);
 
+/* ================================================
+   RESTORE TOKEN
+   (FIX: previously this only updated the button label and never told the
+   portal iframe about the saved token, so returning users who had already
+   granted permission never actually got registered for push again.)
+================================================ */
+
+const savedToken = localStorage.getItem('NCA_EKET_FCM_TOKEN');
+
+if (savedToken){
+  currentToken = savedToken;
+  notifyBtn.textContent = '🔔 Notifications Enabled';
+  sendTokenToPortal();
 }
 
+/* ================================================
+   FOREGROUND MESSAGES
+================================================ */
 
-/*
-================================================
-LISTEN FOR PORTAL REQUEST
-================================================
-*/
+onMessage(messaging, payload => {
 
-window.addEventListener(
-'message',
-event=>{
+  console.log('Foreground notification:', payload);
 
-const data=
-event.data || {};
+  const notification = payload.notification;
 
+  if (notification){
+    new Notification(
+      notification.title || 'NCA EKET Notification',
+      { body: notification.body || 'You have a new notification.' }
+    );
+  }
 
-if(
-data.type ===
-'NCA_EKET_REQUEST_FCM_TOKEN'
-){
+});
 
-sendTokenToPortal();
+/* ================================================
+   PWA SERVICE WORKER
+================================================ */
 
-}
-
-
-if(
-data.type ===
-'NCA_EKET_PORTAL_READY'
-){
-
-status.textContent=
-'NCA EKET System Ready.';
-
-}
-
-}
-);
-
-
-/*
-================================================
-ENABLE BUTTON
-================================================
-*/
-
-notifyBtn.addEventListener(
-'click',
-enableNotifications
-);
-
-
-/*
-================================================
-RESTORE TOKEN
-================================================
-*/
-
-const savedToken=
-
-localStorage.getItem(
-'NCA_EKET_FCM_TOKEN'
-);
-
-
-if(savedToken){
-
-currentToken=savedToken;
-
-
-notifyBtn.textContent=
-'🔔 Notifications Enabled';
-
-
-}
-
-
-/*
-================================================
-FOREGROUND MESSAGES
-================================================
-*/
-
-onMessage(
-messaging,
-payload=>{
-
-console.log(
-'Foreground notification:',
-payload
-);
-
-
-const notification=
-payload.notification;
-
-
-if(notification){
-
-new Notification(
-
-notification.title ||
-'NCA EKET Notification',
-
-{
-
-body:
-notification.body ||
-
-'You have a new notification.'
-
-}
-
-);
-
-}
-
-}
-);
-
-
-/*
-================================================
-PWA SERVICE WORKER
-================================================
-*/
-
-if(
-'serviceWorker' in navigator
-){
-
-navigator.serviceWorker
-.register('sw.js')
-.catch(console.error);
-
+if ('serviceWorker' in navigator){
+  navigator.serviceWorker.register('sw.js').catch(console.error);
 }
 
 </script>
 
 </body>
-
 </html>
