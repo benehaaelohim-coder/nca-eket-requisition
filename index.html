@@ -93,6 +93,13 @@ const firebaseConfig = {
   appId: "1:821123646276:web:e2b09bfe7c5429d65a8d11"
 };
 
+// Must match the Apps Script deployment used in the iframe src above.
+// NOTE: registration now happens over a direct HTTP POST to this URL's
+// doPost() handler — NOT via postMessage into the iframe. Google's own
+// sandboxing silently drops postMessage traffic sent from an external
+// origin into an HtmlService iframe, so that path never worked reliably.
+const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzonygCenDGufNEwecUW8VI1-698tD11wNmzj1InljFrKUe4CdKb5y4seUu2CfcIyAK/exec";
+
 /* ================================================
    FIREBASE
 ================================================ */
@@ -105,6 +112,7 @@ const status = document.getElementById('status');
 const portal = document.getElementById('portal');
 
 let currentToken = '';
+let loggedInUser = null; // { username, role } — set once the dashboard iframe reports a login
 
 /* ================================================
    REGISTER SERVICE WORKER
@@ -153,7 +161,7 @@ async function enableNotifications(){
     notifyBtn.textContent = '🔔 Notifications Enabled';
     status.textContent = 'Notifications enabled successfully.';
 
-    sendTokenToPortal();
+    await maybeRegisterDevice();
 
   }catch(error){
 
@@ -164,40 +172,63 @@ async function enableNotifications(){
 }
 
 /* ================================================
-   SEND TOKEN TO APPS SCRIPT PORTAL
+   REGISTER DEVICE DIRECTLY WITH THE BACKEND
+   (replaces the old postMessage-into-iframe approach, which
+   Google's sandbox silently blocks)
 ================================================ */
 
-function sendTokenToPortal(){
+async function maybeRegisterDevice(){
 
   if (!currentToken){
     currentToken = localStorage.getItem('NCA_EKET_FCM_TOKEN') || '';
   }
 
-  if (!currentToken){
-    portal.contentWindow.postMessage(
-      { type: 'NCA_EKET_FCM_TOKEN_ERROR', message: 'No Firebase notification token available.' },
-      '*'
-    );
-    return;
+  if (!currentToken || !loggedInUser){
+    return; // wait until we have both a token and a known logged-in user
   }
 
-  portal.contentWindow.postMessage(
-    { type: 'NCA_EKET_FCM_TOKEN', token: currentToken },
-    '*'
-  );
+  try{
 
+    status.textContent = 'Registering device...';
+
+    // mode: 'no-cors' because Apps Script web apps don't return
+    // Access-Control-Allow-Origin headers for cross-origin requests.
+    // The request still reaches doPost() and still writes the row —
+    // we just can't read the response body back.
+    await fetch(APPS_SCRIPT_URL, {
+      method: 'POST',
+      mode: 'no-cors',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({
+        username: loggedInUser.username,
+        role: loggedInUser.role,
+        token: currentToken
+      })
+    });
+
+    status.textContent = 'Device registered for notifications.';
+
+  }catch(error){
+
+    console.error('Device registration request failed:', error);
+    status.textContent = 'Could not reach server to register device.';
+
+  }
 }
 
 /* ================================================
-   LISTEN FOR PORTAL REQUESTS
+   LISTEN FOR MESSAGES FROM THE DASHBOARD IFRAME
+   (iframe -> wrapper direction is NOT blocked by Google's sandbox —
+   only wrapper -> iframe is)
 ================================================ */
 
 window.addEventListener('message', event => {
 
   const data = event.data || {};
 
-  if (data.type === 'NCA_EKET_REQUEST_FCM_TOKEN'){
-    sendTokenToPortal();
+  if (data.type === 'NCA_EKET_USER_LOGGED_IN'){
+    loggedInUser = { username: data.username, role: data.role };
+    maybeRegisterDevice();
   }
 
   if (data.type === 'NCA_EKET_PORTAL_READY'){
@@ -213,10 +244,7 @@ window.addEventListener('message', event => {
 notifyBtn.addEventListener('click', enableNotifications);
 
 /* ================================================
-   RESTORE TOKEN
-   (FIX: previously this only updated the button label and never told the
-   portal iframe about the saved token, so returning users who had already
-   granted permission never actually got registered for push again.)
+   RESTORE TOKEN ON RELOAD
 ================================================ */
 
 const savedToken = localStorage.getItem('NCA_EKET_FCM_TOKEN');
@@ -224,7 +252,8 @@ const savedToken = localStorage.getItem('NCA_EKET_FCM_TOKEN');
 if (savedToken){
   currentToken = savedToken;
   notifyBtn.textContent = '🔔 Notifications Enabled';
-  sendTokenToPortal();
+  // Registration itself still waits for loggedInUser to arrive via the
+  // NCA_EKET_USER_LOGGED_IN message once the user logs in below.
 }
 
 /* ================================================
