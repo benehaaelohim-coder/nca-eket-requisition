@@ -1,5 +1,5 @@
 const CACHE_NAME =
-'nca-eket-v6.6';
+'nca-eket-v6.7';
 
 
 const FILES=[
