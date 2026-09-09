@@ -1,90 +1,35 @@
-importScripts(
-
-'https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js'
-
-);
-
-importScripts(
-
-'https://www.gstatic.com/firebasejs/10.13.2/firebase-messaging-compat.js'
-
-);
-
+importScripts('https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js');
+importScripts('https://www.gstatic.com/firebasejs/10.13.2/firebase-messaging-compat.js');
 
 /*
 ================================================
-YOUR FIREBASE CONFIGURATION
-USE THE SAME CONFIGURATION AS index.html
+FIREBASE CONFIGURATION
+(matches firebase-config.js and the wrapper index.html)
 ================================================
 */
 
 firebase.initializeApp({
-
-apiKey:
-"YOUR_API_KEY",
-
-authDomain:
-"YOUR_AUTH_DOMAIN",
-
-projectId:
-"YOUR_PROJECT_ID",
-
-storageBucket:
-"YOUR_STORAGE_BUCKET",
-
-messagingSenderId:
-"YOUR_MESSAGING_SENDER_ID",
-
-appId:
-"YOUR_APP_ID"
-
+  apiKey: "AIzaSyBTIW86UDfX_vwomDtlsCbgzdjWMR5LbKY",
+  authDomain: "nca-eket-procurement.firebaseapp.com",
+  projectId: "nca-eket-procurement",
+  storageBucket: "nca-eket-procurement.firebasestorage.app",
+  messagingSenderId: "821123646276",
+  appId: "1:821123646276:web:e2b09bfe7c5429d65a8d11"
 });
 
+const messaging = firebase.messaging();
 
-const messaging=
+messaging.onBackgroundMessage(payload => {
 
-firebase.messaging();
+  console.log('Background notification:', payload);
 
+  const title = payload.notification?.title || 'NCA EKET E-Requisition';
 
-messaging.onBackgroundMessage(
-payload=>{
+  const options = {
+    body: payload.notification?.body || 'You have a new notification.',
+    icon: 'icon-192.png'
+  };
 
-console.log(
-'Background notification:',
-payload
-);
+  self.registration.showNotification(title, options);
 
-
-const title=
-
-payload.notification?.title ||
-
-'NCA EKET E-Requisition';
-
-
-const options={
-
-body:
-
-payload.notification?.body ||
-
-'You have a new notification.',
-
-
-icon:
-'icon-192.png'
-
-
-};
-
-
-self.registration.showNotification(
-
-title,
-
-options
-
-);
-
-}
-);
+});
