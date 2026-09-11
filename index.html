@@ -4,7 +4,7 @@
 
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>NCA EKET E-Requisition</title>
+<title>NCA GLOBAL E-Requisition</title>
 
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#662D91">
@@ -27,6 +27,9 @@ display:flex;
 align-items:center;
 justify-content:space-between;
 padding: 0 15px;
+box-shadow:0 0 40px 6px rgba(102,45,145,0.55);
+position:relative;
+z-index:1;
 }
 
 .brand{ font-weight:bold; font-size:15px; }
@@ -62,7 +65,7 @@ background:white;
 <body>
 
 <div id="topbar">
-<div class="brand">NCA EKET E-REQUISITION</div>
+<div class="brand"></div>
 <button id="notifyBtn">🔔 Enable Notifications</button>
 </div>
 
@@ -232,7 +235,7 @@ window.addEventListener('message', event => {
   }
 
   if (data.type === 'NCA_EKET_PORTAL_READY'){
-    status.textContent = 'NCA EKET System Ready.';
+    status.textContent = 'NCA GLOBAL System Ready.';
   }
 
 });
@@ -268,7 +271,7 @@ onMessage(messaging, payload => {
 
   if (notification){
     new Notification(
-      notification.title || 'NCA EKET Notification',
+      notification.title || 'NCA GLOBAL Notification',
       { body: notification.body || 'You have a new notification.' }
     );
   }
