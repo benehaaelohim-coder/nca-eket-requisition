@@ -97,10 +97,10 @@ const firebaseConfig = {
 };
 
 // Must match the Apps Script deployment used in the iframe src above.
-// NOTE: registration now happens over a direct HTTP POST to this URL's
-// doPost() handler — NOT via postMessage into the iframe. Google's own
-// sandboxing silently drops postMessage traffic sent from an external
-// origin into an HtmlService iframe, so that path never worked reliably.
+// Registration happens over a direct HTTP POST to this URL's doPost()
+// handler — NOT via postMessage into the iframe. Google's own sandboxing
+// silently drops postMessage traffic sent from an external origin into
+// an HtmlService iframe, so that path never worked reliably.
 const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzonygCenDGufNEwecUW8VI1-698tD11wNmzj1InljFrKUe4CdKb5y4seUu2CfcIyAK/exec";
 
 /* ================================================
@@ -115,7 +115,15 @@ const status = document.getElementById('status');
 const portal = document.getElementById('portal');
 
 let currentToken = '';
-let loggedInUser = null; // { username, role } — set once the dashboard iframe reports a login
+
+// The dashboard iframe's live, signed session token — NOT a raw
+// username/role. We never decide who the user is; we just relay this
+// token unchanged to doPost(), which verifies it server-side with the
+// same requireSession_() check every other authenticated call uses.
+// Held only in memory (never persisted), so it's naturally cleared on
+// page reload, and explicitly cleared on logout — see the message
+// listener below.
+let sessionToken = null;
 
 /* ================================================
    REGISTER SERVICE WORKER
@@ -186,8 +194,8 @@ async function maybeRegisterDevice(){
     currentToken = localStorage.getItem('NCA_EKET_FCM_TOKEN') || '';
   }
 
-  if (!currentToken || !loggedInUser){
-    return; // wait until we have both a token and a known logged-in user
+  if (!currentToken || !sessionToken){
+    return; // wait until we have both a device token and a live session token
   }
 
   try{
@@ -197,15 +205,16 @@ async function maybeRegisterDevice(){
     // mode: 'no-cors' because Apps Script web apps don't return
     // Access-Control-Allow-Origin headers for cross-origin requests.
     // The request still reaches doPost() and still writes the row —
-    // we just can't read the response body back.
+    // we just can't read the response body back. sessionToken proves
+    // who's asking (verified server-side); deviceToken is just the FCM
+    // token this browser holds, which gets attached to that verified user.
     await fetch(APPS_SCRIPT_URL, {
       method: 'POST',
       mode: 'no-cors',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
       body: JSON.stringify({
-        username: loggedInUser.username,
-        role: loggedInUser.role,
-        token: currentToken
+        sessionToken: sessionToken,
+        deviceToken: currentToken
       })
     });
 
@@ -230,8 +239,16 @@ window.addEventListener('message', event => {
   const data = event.data || {};
 
   if (data.type === 'NCA_EKET_USER_LOGGED_IN'){
-    loggedInUser = { username: data.username, role: data.role };
+    sessionToken = data.sessionToken || null;
     maybeRegisterDevice();
+  }
+
+  if (data.type === 'NCA_EKET_USER_LOGGED_OUT'){
+    // The dashboard's session ended (explicit logout, or its own token
+    // expired/was rejected) — drop our copy so a stale token never gets
+    // sent on a future registration attempt.
+    sessionToken = null;
+    status.textContent = 'Logged out.';
   }
 
   if (data.type === 'NCA_EKET_PORTAL_READY'){
@@ -255,8 +272,8 @@ const savedToken = localStorage.getItem('NCA_EKET_FCM_TOKEN');
 if (savedToken){
   currentToken = savedToken;
   notifyBtn.textContent = '🔔 Notifications Enabled';
-  // Registration itself still waits for loggedInUser to arrive via the
-  // NCA_EKET_USER_LOGGED_IN message once the user logs in below.
+  // Registration itself still waits for a live sessionToken to arrive via
+  // the NCA_EKET_USER_LOGGED_IN message once the user logs in below.
 }
 
 /* ================================================
