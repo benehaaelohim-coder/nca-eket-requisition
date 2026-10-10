@@ -79,120 +79,27 @@ background:white;
 
 <iframe id="portal" src="https://script.google.com/macros/s/AKfycbzonygCenDGufNEwecUW8VI1-698tD11wNmzj1InljFrKUe4CdKb5y4seUu2CfcIyAK/exec"></iframe>
 
-<script type="module">
+<!-- ============================================================
+     PART 1 — FINGERPRINT / FACE ID  (plain script, no Firebase)
+     Runs on its own so a push-notification problem can never break it.
+============================================================ -->
+<script>
+(function(){
 
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-app.js";
-import { getMessaging, getToken, onMessage } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-messaging.js";
-
-const firebaseConfig = {
-  apiKey: "AIzaSyBTIW86UDfX_vwomDtlsCbgzdjWMR5LbKY",
-  authDomain: "nca-eket-procurement.firebaseapp.com",
-  projectId: "nca-eket-procurement",
-  storageBucket: "nca-eket-procurement.firebasestorage.app",
-  messagingSenderId: "821123646276",
-  appId: "1:821123646276:web:e2b09bfe7c5429d65a8d11"
-};
-
+const WRAPPER_VERSION = 'wrapper v8.23';
 const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzonygCenDGufNEwecUW8VI1-698tD11wNmzj1InljFrKUe4CdKb5y4seUu2CfcIyAK/exec";
 
-const app = initializeApp(firebaseConfig);
-const messaging = getMessaging(app);
-
-const notifyBtn = document.getElementById('notifyBtn');
 const bioBtn = document.getElementById('bioBtn');
-const status = document.getElementById('status');
+const statusEl = document.getElementById('status');
 const portal = document.getElementById('portal');
 
-let currentToken = '';
-let sessionToken = null;
+window.__ncaSessionToken = null;   // shared with the notification script below
+let bioSupported = false;
+let bioReason = '';
 
-/* ================================================
-   NOTIFICATIONS (unchanged)
-================================================ */
-
-async function registerServiceWorker(){
-  return await navigator.serviceWorker.register('firebase-messaging-sw.js');
-}
-
-async function enableNotifications(){
-  try{
-
-    if (!('Notification' in window)){
-      throw new Error('Notifications are not supported by this browser.');
-    }
-
-    const permission = await Notification.requestPermission();
-
-    if (permission !== 'granted'){
-      throw new Error('Notification permission was not granted.');
-    }
-
-    status.textContent = 'Preparing notifications...';
-
-    const registration = await registerServiceWorker();
-
-    const token = await getToken(messaging, {
-      serviceWorkerRegistration: registration,
-      vapidKey: "BHdiWSDWpYehJTDZ2rHImeIGCQ7VU9BojBmNE5puvndkMOrHOlaFtLImAG1vzmLHiU6oANbKnNVoX15Ot6pH2Ec"
-    });
-
-    if (!token){
-      throw new Error('Unable to generate notification token.');
-    }
-
-    currentToken = token;
-    localStorage.setItem('NCA_EKET_FCM_TOKEN', token);
-
-    notifyBtn.textContent = '🔔 Notifications Enabled';
-    status.textContent = 'Notifications enabled successfully.';
-
-    await maybeRegisterDevice();
-
-  }catch(error){
-    console.error(error);
-    status.textContent = 'Notification error: ' + error.message;
-  }
-}
-
-async function maybeRegisterDevice(){
-
-  if (!currentToken){
-    currentToken = localStorage.getItem('NCA_EKET_FCM_TOKEN') || '';
-  }
-
-  if (!currentToken || !sessionToken){
-    return;
-  }
-
-  try{
-
-    status.textContent = 'Registering device...';
-
-    await fetch(APPS_SCRIPT_URL, {
-      method: 'POST',
-      mode: 'no-cors',
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify({
-        sessionToken: sessionToken,
-        deviceToken: currentToken
-      })
-    });
-
-    status.textContent = 'Device registered for notifications.';
-
-  }catch(error){
-    console.error('Device registration request failed:', error);
-    status.textContent = 'Could not reach server to register device.';
-  }
-}
-
-/* ================================================
-   FINGERPRINT / FACE ID (v8.22)
-   The phone check runs HERE (top level), where WebAuthn is allowed.
-================================================ */
+function setStatus(text){ statusEl.textContent = text; }
 
 const BIO_KEY = 'NCA_BIO_V2';
-let bioSupported = false;
 
 function bioStored(){ try{ return JSON.parse(localStorage.getItem(BIO_KEY) || 'null'); }catch(e){ return null; } }
 function bioSave(v){ try{ localStorage.setItem(BIO_KEY, JSON.stringify(v)); }catch(e){} }
@@ -210,6 +117,11 @@ function fromB64u(str){
   const bin = atob(str); const out = new Uint8Array(bin.length);
   for(let i=0;i<bin.length;i++) out[i] = bin.charCodeAt(i);
   return out;
+}
+function newUuid(){
+  if(crypto.randomUUID) return crypto.randomUUID();
+  const h = randomHex(16);
+  return h.slice(0,8)+'-'+h.slice(8,12)+'-4'+h.slice(13,16)+'-a'+h.slice(17,20)+'-'+h.slice(20,32);
 }
 function deviceLabel(){
   const ua = navigator.userAgent;
@@ -230,22 +142,24 @@ function postBackend(body){
 }
 
 function refreshBioButton(){
-  const enrolled = !!bioStored();
-  const loggedIn = !!sessionToken;
-
-  if(!bioSupported || (!enrolled && !loggedIn)){
+  if(!bioSupported){
     bioBtn.classList.add('hidden');
     return;
   }
+  const enrolled = !!bioStored();
+  const loggedIn = !!window.__ncaSessionToken;
+
   bioBtn.classList.remove('hidden');
 
   if(enrolled && !loggedIn) bioBtn.textContent = '👆 Use Fingerprint / Face ID';
   else if(!enrolled && loggedIn) bioBtn.textContent = '👆 Enable Fingerprint / Face ID';
-  else bioBtn.textContent = '👆 Remove Fingerprint Login';
+  else if(enrolled && loggedIn) bioBtn.textContent = '👆 Remove Fingerprint Login';
+  else bioBtn.textContent = '👆 Set Up Fingerprint / Face ID';
 }
+window.__ncaRefreshBio = refreshBioButton;
 
 async function bioEnroll(){
-  const deviceId = crypto.randomUUID();
+  const deviceId = newUuid();
   const deviceToken = randomHex(32);
 
   const cred = await navigator.credentials.create({ publicKey:{
@@ -258,7 +172,8 @@ async function bioEnroll(){
     timeout:60000
   }});
 
-  await postBackend({ action:'bioEnroll', sessionToken: sessionToken, deviceId: deviceId, deviceToken: deviceToken, label: deviceLabel() });
+  setStatus('Saving fingerprint login on the server...');
+  await postBackend({ action:'bioEnroll', sessionToken: window.__ncaSessionToken, deviceId: deviceId, deviceToken: deviceToken, label: deviceLabel() });
   bioSave({ deviceId: deviceId, deviceToken: deviceToken, credId: toB64u(cred.rawId) });
 }
 
@@ -274,111 +189,221 @@ async function bioLogin(){
       timeout:60000
     }});
   }catch(error){
-    status.textContent = 'Fingerprint / Face ID check was cancelled or failed.';
+    setStatus('Fingerprint / Face ID check was cancelled or failed.');
     return;
   }
 
   try{
-    status.textContent = 'Signing in...';
+    setStatus('Signing in...');
     const otc = randomHex(16);
     await postBackend({ action:'bioLogin', deviceId: s.deviceId, deviceToken: s.deviceToken, otc: otc });
-    sessionToken = null;
+    window.__ncaSessionToken = null;
     portal.src = APPS_SCRIPT_URL + '?otc=' + otc;
   }catch(error){
-    status.textContent = 'Could not reach the server. Check your internet connection.';
+    setStatus('Could not reach the server. Check your internet connection.');
   }
 }
 
 async function bioToggle(){
   const enrolled = !!bioStored();
-  const loggedIn = !!sessionToken;
+  const loggedIn = !!window.__ncaSessionToken;
 
   try{
     if(enrolled && !loggedIn){
       await bioLogin();
     }else if(!enrolled && loggedIn){
       await bioEnroll();
-      status.textContent = 'Fingerprint / Face ID login enabled on this device.';
+      setStatus('Fingerprint / Face ID login enabled on this device.');
       alert('Fingerprint / Face ID login is now enabled on this device.');
     }else if(enrolled && loggedIn){
       const s = bioStored();
-      await postBackend({ action:'bioRemove', sessionToken: sessionToken, deviceId: s.deviceId });
+      await postBackend({ action:'bioRemove', sessionToken: window.__ncaSessionToken, deviceId: s.deviceId });
       bioWipe();
-      status.textContent = 'Fingerprint login removed from this device.';
+      setStatus('Fingerprint login removed from this device.');
+    }else{
+      setStatus('Log in with your password first, then tap this button again.');
+      alert('Please log in with your username and password first, then tap this button to enable Fingerprint / Face ID.');
     }
   }catch(error){
     console.error(error);
-    status.textContent = 'Fingerprint / Face ID setup was cancelled or is not available on this device.';
+    setStatus('Fingerprint setup failed: ' + (error && error.name ? error.name : 'unknown') + ' — ' + (error && error.message ? error.message : ''));
   }
   refreshBioButton();
 }
 
 bioBtn.addEventListener('click', bioToggle);
 
-(async function(){
+(async function detect(){
+  const ua = navigator.userAgent || '';
   try{
-    bioSupported = !!(window.PublicKeyCredential && navigator.credentials &&
-      PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable &&
-      await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable());
-  }catch(e){ bioSupported = false; }
+    if(!window.isSecureContext){
+      bioReason = 'page is not HTTPS';
+    }else if(/FBAN|FBAV|Instagram|WhatsApp|Line\/|MicroMessenger|; wv\)/i.test(ua)){
+      bioReason = 'open this link in Chrome or Safari, not inside another app';
+    }else if(!window.PublicKeyCredential || !navigator.credentials){
+      bioReason = 'this browser has no WebAuthn support';
+    }else if(!PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable){
+      bioReason = 'this browser cannot check for a fingerprint sensor';
+    }else if(!(await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable())){
+      bioReason = 'no screen lock / fingerprint / Face ID is set up on this phone';
+    }else{
+      bioSupported = true;
+    }
+  }catch(e){
+    bioReason = 'check failed: ' + e.message;
+  }
+
+  setStatus(WRAPPER_VERSION + ' — Fingerprint: ' + (bioSupported ? 'available' : 'not available (' + bioReason + ')'));
   refreshBioButton();
 })();
 
-/* ================================================
-   MESSAGES FROM THE PORTAL IFRAME
-================================================ */
-
-window.addEventListener('message', event => {
-
+/* Messages from the portal (it sends them to window.top, which is this page). */
+window.addEventListener('message', function(event){
   const data = event.data || {};
 
   if (data.type === 'NCA_EKET_USER_LOGGED_IN'){
-    sessionToken = data.sessionToken || null;
-    maybeRegisterDevice();
+    window.__ncaSessionToken = data.sessionToken || null;
     refreshBioButton();
+    if(window.__ncaMaybeRegisterDevice) window.__ncaMaybeRegisterDevice();
   }
 
   if (data.type === 'NCA_EKET_USER_LOGGED_OUT'){
-    sessionToken = null;
-    status.textContent = 'Logged out.';
+    window.__ncaSessionToken = null;
+    setStatus('Logged out.');
     refreshBioButton();
   }
 
   if (data.type === 'NCA_EKET_PORTAL_READY'){
-    status.textContent = 'NCA GLOBAL System Ready.';
+    setStatus('NCA GLOBAL System Ready (' + WRAPPER_VERSION + ').' + (bioSupported ? '' : ' Fingerprint not available: ' + bioReason));
   }
 
   if (data.type === 'NCA_BIO_INVALID'){
-    // Server rejected the saved fingerprint key (expired, password changed, etc.)
     bioWipe();
     refreshBioButton();
   }
-
 });
+
+})();
+</script>
+
+
+<!-- ============================================================
+     PART 2 — PUSH NOTIFICATIONS (Firebase). Failure here is isolated.
+============================================================ -->
+<script type="module">
+
+const notifyBtn = document.getElementById('notifyBtn');
+const statusEl = document.getElementById('status');
+
+const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzonygCenDGufNEwecUW8VI1-698tD11wNmzj1InljFrKUe4CdKb5y4seUu2CfcIyAK/exec";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyBTIW86UDfX_vwomDtlsCbgzdjWMR5LbKY",
+  authDomain: "nca-eket-procurement.firebaseapp.com",
+  projectId: "nca-eket-procurement",
+  storageBucket: "nca-eket-procurement.firebasestorage.app",
+  messagingSenderId: "821123646276",
+  appId: "1:821123646276:web:e2b09bfe7c5429d65a8d11"
+};
+
+let messaging = null;
+let getToken = null;
+let currentToken = '';
+
+try{
+  const appMod = await import("https://www.gstatic.com/firebasejs/10.13.2/firebase-app.js");
+  const msgMod = await import("https://www.gstatic.com/firebasejs/10.13.2/firebase-messaging.js");
+
+  const supported = await msgMod.isSupported();
+  if(!supported) throw new Error('Push notifications are not supported in this browser.');
+
+  const app = appMod.initializeApp(firebaseConfig);
+  messaging = msgMod.getMessaging(app);
+  getToken = msgMod.getToken;
+
+  msgMod.onMessage(messaging, payload => {
+    const notification = payload.notification;
+    if (notification){
+      try{
+        new Notification(
+          notification.title || 'NCA GLOBAL Notification',
+          { body: notification.body || 'You have a new notification.' }
+        );
+      }catch(e){}
+    }
+  });
+}catch(error){
+  console.warn('Notifications unavailable:', error.message);
+  notifyBtn.classList.add('hidden');
+}
+
+async function registerServiceWorker(){
+  return await navigator.serviceWorker.register('firebase-messaging-sw.js');
+}
+
+async function enableNotifications(){
+  try{
+
+    if (!messaging) throw new Error('Notifications are not supported by this browser.');
+
+    const permission = await Notification.requestPermission();
+    if (permission !== 'granted') throw new Error('Notification permission was not granted.');
+
+    statusEl.textContent = 'Preparing notifications...';
+
+    const registration = await registerServiceWorker();
+
+    const token = await getToken(messaging, {
+      serviceWorkerRegistration: registration,
+      vapidKey: "BHdiWSDWpYehJTDZ2rHImeIGCQ7VU9BojBmNE5puvndkMOrHOlaFtLImAG1vzmLHiU6oANbKnNVoX15Ot6pH2Ec"
+    });
+
+    if (!token) throw new Error('Unable to generate notification token.');
+
+    currentToken = token;
+    localStorage.setItem('NCA_EKET_FCM_TOKEN', token);
+
+    notifyBtn.textContent = '🔔 Notifications Enabled';
+    statusEl.textContent = 'Notifications enabled successfully.';
+
+    await maybeRegisterDevice();
+
+  }catch(error){
+    console.error(error);
+    statusEl.textContent = 'Notification error: ' + error.message;
+  }
+}
+
+async function maybeRegisterDevice(){
+
+  if (!currentToken){
+    currentToken = localStorage.getItem('NCA_EKET_FCM_TOKEN') || '';
+  }
+
+  const sessionToken = window.__ncaSessionToken;
+  if (!currentToken || !sessionToken) return;
+
+  try{
+    await fetch(APPS_SCRIPT_URL, {
+      method: 'POST',
+      mode: 'no-cors',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ sessionToken: sessionToken, deviceToken: currentToken })
+    });
+  }catch(error){
+    console.error('Device registration request failed:', error);
+  }
+}
+
+window.__ncaMaybeRegisterDevice = maybeRegisterDevice;
 
 notifyBtn.addEventListener('click', enableNotifications);
 
 const savedToken = localStorage.getItem('NCA_EKET_FCM_TOKEN');
-
 if (savedToken){
   currentToken = savedToken;
   notifyBtn.textContent = '🔔 Notifications Enabled';
 }
-
-onMessage(messaging, payload => {
-
-  console.log('Foreground notification:', payload);
-
-  const notification = payload.notification;
-
-  if (notification){
-    new Notification(
-      notification.title || 'NCA GLOBAL Notification',
-      { body: notification.body || 'You have a new notification.' }
-    );
-  }
-
-});
 
 if ('serviceWorker' in navigator){
   navigator.serviceWorker.register('sw.js').catch(console.error);
