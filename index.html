@@ -86,7 +86,7 @@ background:white;
 <script>
 (function(){
 
-const WRAPPER_VERSION = 'wrapper v8.23';
+const WRAPPER_VERSION = 'wrapper v8.24';
 const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzonygCenDGufNEwecUW8VI1-698tD11wNmzj1InljFrKUe4CdKb5y4seUu2CfcIyAK/exec";
 
 const bioBtn = document.getElementById('bioBtn');
@@ -141,20 +141,45 @@ function postBackend(body){
   });
 }
 
-function refreshBioButton(){
-  if(!bioSupported){
-    bioBtn.classList.add('hidden');
-    return;
+/* Send a message to every frame inside the portal iframe (Apps Script nests
+   the real page one or two frames deep, and only this recursive send reaches it). */
+function broadcastToPortal(msg){
+  function walk(win, depth){
+    if(depth > 4) return;
+    let count = 0;
+    try{ count = win.length; }catch(e){ return; }
+    for(let i=0;i<count;i++){
+      try{
+        const child = win.frames[i];
+        child.postMessage(msg, '*');
+        walk(child, depth+1);
+      }catch(e){}
+    }
   }
+  try{
+    portal.contentWindow.postMessage(msg, '*');
+    walk(portal.contentWindow, 0);
+  }catch(e){}
+}
+
+function broadcastBioState(){
+  broadcastToPortal({ type:'NCA_BIO_STATE', supported: bioSupported, enrolled: !!bioStored() });
+}
+
+function refreshBioButton(){
+  broadcastBioState();
+
   const enrolled = !!bioStored();
   const loggedIn = !!window.__ncaSessionToken;
 
-  bioBtn.classList.remove('hidden');
+  /* Not logged in: the fingerprint button lives on the portal login card, so hide this one. */
+  if(!bioSupported || !loggedIn){
+    bioBtn.classList.add('hidden');
+    return;
+  }
 
-  if(enrolled && !loggedIn) bioBtn.textContent = '👆 Use Fingerprint / Face ID';
-  else if(!enrolled && loggedIn) bioBtn.textContent = '👆 Enable Fingerprint / Face ID';
-  else if(enrolled && loggedIn) bioBtn.textContent = '👆 Remove Fingerprint Login';
-  else bioBtn.textContent = '👆 Set Up Fingerprint / Face ID';
+  bioBtn.classList.remove('hidden');
+  bioBtn.textContent = enrolled ? '👆 Remove Fingerprint Login' : '👆 Enable Fingerprint / Face ID';
 }
 window.__ncaRefreshBio = refreshBioButton;
 
@@ -179,7 +204,7 @@ async function bioEnroll(){
 
 async function bioLogin(){
   const s = bioStored();
-  if(!s) return;
+  if(!s) return false;
 
   try{
     await navigator.credentials.get({ publicKey:{
@@ -190,7 +215,7 @@ async function bioLogin(){
     }});
   }catch(error){
     setStatus('Fingerprint / Face ID check was cancelled or failed.');
-    return;
+    return false;
   }
 
   try{
@@ -199,8 +224,10 @@ async function bioLogin(){
     await postBackend({ action:'bioLogin', deviceId: s.deviceId, deviceToken: s.deviceToken, otc: otc });
     window.__ncaSessionToken = null;
     portal.src = APPS_SCRIPT_URL + '?otc=' + otc;
+    return true;
   }catch(error){
     setStatus('Could not reach the server. Check your internet connection.');
+    return false;
   }
 }
 
@@ -261,6 +288,16 @@ bioBtn.addEventListener('click', bioToggle);
 window.addEventListener('message', function(event){
   const data = event.data || {};
 
+  if (data.type === 'NCA_BIO_QUERY'){
+    broadcastBioState();
+  }
+
+  if (data.type === 'NCA_BIO_LOGIN'){
+    bioLogin().then(function(ok){
+      if(!ok) broadcastToPortal({ type:'NCA_BIO_RESULT', ok:false });
+    });
+  }
+
   if (data.type === 'NCA_EKET_USER_LOGGED_IN'){
     window.__ncaSessionToken = data.sessionToken || null;
     refreshBioButton();
@@ -274,6 +311,7 @@ window.addEventListener('message', function(event){
   }
 
   if (data.type === 'NCA_EKET_PORTAL_READY'){
+    broadcastBioState();
     setStatus('NCA GLOBAL System Ready (' + WRAPPER_VERSION + ').' + (bioSupported ? '' : ' Fingerprint not available: ' + bioReason));
   }
 
