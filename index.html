@@ -20,19 +20,21 @@ background:#f4f5f8;
 }
 
 #topbar{
-height:60px;
+min-height:60px;
 background: linear-gradient(135deg,#662D91,#4e1f70);
 color:white;
 display:flex;
 align-items:center;
 justify-content:space-between;
-padding: 0 15px;
+gap:8px;
+padding: 8px 15px;
 box-shadow:0 0 40px 6px rgba(102,45,145,0.55);
 position:relative;
 z-index:1;
 }
 
 .brand{ font-weight:bold; font-size:15px; }
+.topButtons{ display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end; }
 
 button{
 border:0;
@@ -42,7 +44,8 @@ cursor:pointer;
 font-weight:bold;
 }
 
-#notifyBtn{ background:white; color:#662D91; }
+#notifyBtn, #bioBtn{ background:white; color:#662D91; }
+.hidden{ display:none!important; }
 
 #status{
 font-size:11px;
@@ -66,7 +69,10 @@ background:white;
 
 <div id="topbar">
 <div class="brand"></div>
+<div class="topButtons">
+<button id="bioBtn" class="hidden"></button>
 <button id="notifyBtn">🔔 Enable Notifications</button>
+</div>
 </div>
 
 <div id="status">Loading system...</div>
@@ -75,17 +81,8 @@ background:white;
 
 <script type="module">
 
-/* ================================================
-   FIREBASE IMPORTS
-================================================ */
-
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-app.js";
 import { getMessaging, getToken, onMessage } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-messaging.js";
-
-/* ================================================
-   YOUR FIREBASE CONFIGURATION
-   (same values as firebase-config.js / firebase-messaging-sw.js)
-================================================ */
 
 const firebaseConfig = {
   apiKey: "AIzaSyBTIW86UDfX_vwomDtlsCbgzdjWMR5LbKY",
@@ -96,46 +93,26 @@ const firebaseConfig = {
   appId: "1:821123646276:web:e2b09bfe7c5429d65a8d11"
 };
 
-// Must match the Apps Script deployment used in the iframe src above.
-// Registration happens over a direct HTTP POST to this URL's doPost()
-// handler — NOT via postMessage into the iframe. Google's own sandboxing
-// silently drops postMessage traffic sent from an external origin into
-// an HtmlService iframe, so that path never worked reliably.
 const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzonygCenDGufNEwecUW8VI1-698tD11wNmzj1InljFrKUe4CdKb5y4seUu2CfcIyAK/exec";
-
-/* ================================================
-   FIREBASE
-================================================ */
 
 const app = initializeApp(firebaseConfig);
 const messaging = getMessaging(app);
 
 const notifyBtn = document.getElementById('notifyBtn');
+const bioBtn = document.getElementById('bioBtn');
 const status = document.getElementById('status');
 const portal = document.getElementById('portal');
 
 let currentToken = '';
-
-// The dashboard iframe's live, signed session token — NOT a raw
-// username/role. We never decide who the user is; we just relay this
-// token unchanged to doPost(), which verifies it server-side with the
-// same requireSession_() check every other authenticated call uses.
-// Held only in memory (never persisted), so it's naturally cleared on
-// page reload, and explicitly cleared on logout — see the message
-// listener below.
 let sessionToken = null;
 
 /* ================================================
-   REGISTER SERVICE WORKER
+   NOTIFICATIONS (unchanged)
 ================================================ */
 
 async function registerServiceWorker(){
   return await navigator.serviceWorker.register('firebase-messaging-sw.js');
 }
-
-/* ================================================
-   ENABLE NOTIFICATIONS
-================================================ */
 
 async function enableNotifications(){
   try{
@@ -156,8 +133,6 @@ async function enableNotifications(){
 
     const token = await getToken(messaging, {
       serviceWorkerRegistration: registration,
-      // NOTE: replace with your real VAPID key from
-      // Firebase Console -> Project Settings -> Cloud Messaging -> Web Push certificates
       vapidKey: "BHdiWSDWpYehJTDZ2rHImeIGCQ7VU9BojBmNE5puvndkMOrHOlaFtLImAG1vzmLHiU6oANbKnNVoX15Ot6pH2Ec"
     });
 
@@ -166,7 +141,6 @@ async function enableNotifications(){
     }
 
     currentToken = token;
-
     localStorage.setItem('NCA_EKET_FCM_TOKEN', token);
 
     notifyBtn.textContent = '🔔 Notifications Enabled';
@@ -175,18 +149,10 @@ async function enableNotifications(){
     await maybeRegisterDevice();
 
   }catch(error){
-
     console.error(error);
     status.textContent = 'Notification error: ' + error.message;
-
   }
 }
-
-/* ================================================
-   REGISTER DEVICE DIRECTLY WITH THE BACKEND
-   (replaces the old postMessage-into-iframe approach, which
-   Google's sandbox silently blocks)
-================================================ */
 
 async function maybeRegisterDevice(){
 
@@ -195,19 +161,13 @@ async function maybeRegisterDevice(){
   }
 
   if (!currentToken || !sessionToken){
-    return; // wait until we have both a device token and a live session token
+    return;
   }
 
   try{
 
     status.textContent = 'Registering device...';
 
-    // mode: 'no-cors' because Apps Script web apps don't return
-    // Access-Control-Allow-Origin headers for cross-origin requests.
-    // The request still reaches doPost() and still writes the row —
-    // we just can't read the response body back. sessionToken proves
-    // who's asking (verified server-side); deviceToken is just the FCM
-    // token this browser holds, which gets attached to that verified user.
     await fetch(APPS_SCRIPT_URL, {
       method: 'POST',
       mode: 'no-cors',
@@ -221,17 +181,151 @@ async function maybeRegisterDevice(){
     status.textContent = 'Device registered for notifications.';
 
   }catch(error){
-
     console.error('Device registration request failed:', error);
     status.textContent = 'Could not reach server to register device.';
-
   }
 }
 
 /* ================================================
-   LISTEN FOR MESSAGES FROM THE DASHBOARD IFRAME
-   (iframe -> wrapper direction is NOT blocked by Google's sandbox —
-   only wrapper -> iframe is)
+   FINGERPRINT / FACE ID (v8.22)
+   The phone check runs HERE (top level), where WebAuthn is allowed.
+================================================ */
+
+const BIO_KEY = 'NCA_BIO_V2';
+let bioSupported = false;
+
+function bioStored(){ try{ return JSON.parse(localStorage.getItem(BIO_KEY) || 'null'); }catch(e){ return null; } }
+function bioSave(v){ try{ localStorage.setItem(BIO_KEY, JSON.stringify(v)); }catch(e){} }
+function bioWipe(){ try{ localStorage.removeItem(BIO_KEY); }catch(e){} }
+
+function randomHex(bytes){
+  return [...crypto.getRandomValues(new Uint8Array(bytes))].map(b => b.toString(16).padStart(2,'0')).join('');
+}
+function toB64u(buf){
+  let s=''; new Uint8Array(buf).forEach(b => s += String.fromCharCode(b));
+  return btoa(s).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+}
+function fromB64u(str){
+  str = str.replace(/-/g,'+').replace(/_/g,'/'); while(str.length % 4) str += '=';
+  const bin = atob(str); const out = new Uint8Array(bin.length);
+  for(let i=0;i<bin.length;i++) out[i] = bin.charCodeAt(i);
+  return out;
+}
+function deviceLabel(){
+  const ua = navigator.userAgent;
+  if(/iPhone|iPad/.test(ua)) return 'iPhone/iPad';
+  if(/Android/.test(ua)) return 'Android';
+  if(/Mac/.test(ua)) return 'Mac';
+  if(/Windows/.test(ua)) return 'Windows';
+  return 'Device';
+}
+
+function postBackend(body){
+  return fetch(APPS_SCRIPT_URL, {
+    method: 'POST',
+    mode: 'no-cors',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify(body)
+  });
+}
+
+function refreshBioButton(){
+  const enrolled = !!bioStored();
+  const loggedIn = !!sessionToken;
+
+  if(!bioSupported || (!enrolled && !loggedIn)){
+    bioBtn.classList.add('hidden');
+    return;
+  }
+  bioBtn.classList.remove('hidden');
+
+  if(enrolled && !loggedIn) bioBtn.textContent = '👆 Use Fingerprint / Face ID';
+  else if(!enrolled && loggedIn) bioBtn.textContent = '👆 Enable Fingerprint / Face ID';
+  else bioBtn.textContent = '👆 Remove Fingerprint Login';
+}
+
+async function bioEnroll(){
+  const deviceId = crypto.randomUUID();
+  const deviceToken = randomHex(32);
+
+  const cred = await navigator.credentials.create({ publicKey:{
+    challenge: crypto.getRandomValues(new Uint8Array(32)),
+    rp:{ name:'NCA Global Portal' },
+    user:{ id:new TextEncoder().encode(deviceId), name:'nca-user', displayName:'NCA User' },
+    pubKeyCredParams:[{ type:'public-key', alg:-7 },{ type:'public-key', alg:-257 }],
+    authenticatorSelection:{ authenticatorAttachment:'platform', userVerification:'required', residentKey:'discouraged' },
+    attestation:'none',
+    timeout:60000
+  }});
+
+  await postBackend({ action:'bioEnroll', sessionToken: sessionToken, deviceId: deviceId, deviceToken: deviceToken, label: deviceLabel() });
+  bioSave({ deviceId: deviceId, deviceToken: deviceToken, credId: toB64u(cred.rawId) });
+}
+
+async function bioLogin(){
+  const s = bioStored();
+  if(!s) return;
+
+  try{
+    await navigator.credentials.get({ publicKey:{
+      challenge: crypto.getRandomValues(new Uint8Array(32)),
+      allowCredentials:[{ type:'public-key', id: fromB64u(s.credId), transports:['internal'] }],
+      userVerification:'required',
+      timeout:60000
+    }});
+  }catch(error){
+    status.textContent = 'Fingerprint / Face ID check was cancelled or failed.';
+    return;
+  }
+
+  try{
+    status.textContent = 'Signing in...';
+    const otc = randomHex(16);
+    await postBackend({ action:'bioLogin', deviceId: s.deviceId, deviceToken: s.deviceToken, otc: otc });
+    sessionToken = null;
+    portal.src = APPS_SCRIPT_URL + '?otc=' + otc;
+  }catch(error){
+    status.textContent = 'Could not reach the server. Check your internet connection.';
+  }
+}
+
+async function bioToggle(){
+  const enrolled = !!bioStored();
+  const loggedIn = !!sessionToken;
+
+  try{
+    if(enrolled && !loggedIn){
+      await bioLogin();
+    }else if(!enrolled && loggedIn){
+      await bioEnroll();
+      status.textContent = 'Fingerprint / Face ID login enabled on this device.';
+      alert('Fingerprint / Face ID login is now enabled on this device.');
+    }else if(enrolled && loggedIn){
+      const s = bioStored();
+      await postBackend({ action:'bioRemove', sessionToken: sessionToken, deviceId: s.deviceId });
+      bioWipe();
+      status.textContent = 'Fingerprint login removed from this device.';
+    }
+  }catch(error){
+    console.error(error);
+    status.textContent = 'Fingerprint / Face ID setup was cancelled or is not available on this device.';
+  }
+  refreshBioButton();
+}
+
+bioBtn.addEventListener('click', bioToggle);
+
+(async function(){
+  try{
+    bioSupported = !!(window.PublicKeyCredential && navigator.credentials &&
+      PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable &&
+      await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable());
+  }catch(e){ bioSupported = false; }
+  refreshBioButton();
+})();
+
+/* ================================================
+   MESSAGES FROM THE PORTAL IFRAME
 ================================================ */
 
 window.addEventListener('message', event => {
@@ -241,44 +335,35 @@ window.addEventListener('message', event => {
   if (data.type === 'NCA_EKET_USER_LOGGED_IN'){
     sessionToken = data.sessionToken || null;
     maybeRegisterDevice();
+    refreshBioButton();
   }
 
   if (data.type === 'NCA_EKET_USER_LOGGED_OUT'){
-    // The dashboard's session ended (explicit logout, or its own token
-    // expired/was rejected) — drop our copy so a stale token never gets
-    // sent on a future registration attempt.
     sessionToken = null;
     status.textContent = 'Logged out.';
+    refreshBioButton();
   }
 
   if (data.type === 'NCA_EKET_PORTAL_READY'){
     status.textContent = 'NCA GLOBAL System Ready.';
   }
 
+  if (data.type === 'NCA_BIO_INVALID'){
+    // Server rejected the saved fingerprint key (expired, password changed, etc.)
+    bioWipe();
+    refreshBioButton();
+  }
+
 });
 
-/* ================================================
-   ENABLE BUTTON
-================================================ */
-
 notifyBtn.addEventListener('click', enableNotifications);
-
-/* ================================================
-   RESTORE TOKEN ON RELOAD
-================================================ */
 
 const savedToken = localStorage.getItem('NCA_EKET_FCM_TOKEN');
 
 if (savedToken){
   currentToken = savedToken;
   notifyBtn.textContent = '🔔 Notifications Enabled';
-  // Registration itself still waits for a live sessionToken to arrive via
-  // the NCA_EKET_USER_LOGGED_IN message once the user logs in below.
 }
-
-/* ================================================
-   FOREGROUND MESSAGES
-================================================ */
 
 onMessage(messaging, payload => {
 
@@ -294,10 +379,6 @@ onMessage(messaging, payload => {
   }
 
 });
-
-/* ================================================
-   PWA SERVICE WORKER
-================================================ */
 
 if ('serviceWorker' in navigator){
   navigator.serviceWorker.register('sw.js').catch(console.error);
