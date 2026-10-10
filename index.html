@@ -70,6 +70,8 @@ background:white;
 <div id="topbar">
 <div class="brand"></div>
 <div class="topButtons">
+<!-- v8.26: the fingerprint button now lives inside the portal (beside Change Password).
+     This element is kept (hidden) because the script below still references it. -->
 <button id="bioBtn" class="hidden"></button>
 <button id="notifyBtn">🔔 Enable Notifications</button>
 </div>
@@ -86,7 +88,7 @@ background:white;
 <script>
 (function(){
 
-const WRAPPER_VERSION = 'wrapper v8.25';
+const WRAPPER_VERSION = 'wrapper v8.26';
 const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzonygCenDGufNEwecUW8VI1-698tD11wNmzj1InljFrKUe4CdKb5y4seUu2CfcIyAK/exec";
 
 const bioBtn = document.getElementById('bioBtn');
@@ -166,20 +168,11 @@ function broadcastBioState(){
   broadcastToPortal({ type:'NCA_BIO_STATE', supported: bioSupported, enrolled: !!bioStored() });
 }
 
+/* v8.26: the Enable / Remove button is drawn by the portal (beside Change Password),
+   so this wrapper only reports the current state and keeps its own button hidden. */
 function refreshBioButton(){
   broadcastBioState();
-
-  const enrolled = !!bioStored();
-  const loggedIn = !!window.__ncaSessionToken;
-
-  /* Not logged in: the fingerprint button lives on the portal login card, so hide this one. */
-  if(!bioSupported || !loggedIn){
-    bioBtn.classList.add('hidden');
-    return;
-  }
-
-  bioBtn.classList.remove('hidden');
-  bioBtn.textContent = enrolled ? '👆 Remove Fingerprint Login' : '👆 Enable Fingerprint / Face ID';
+  bioBtn.classList.add('hidden');
 }
 window.__ncaRefreshBio = refreshBioButton;
 
@@ -290,6 +283,11 @@ window.addEventListener('message', function(event){
 
   if (data.type === 'NCA_BIO_QUERY'){
     broadcastBioState();
+  }
+
+  /* v8.26: the portal's new Enable / Remove button asks us to run the toggle. */
+  if (data.type === 'NCA_BIO_TOGGLE'){
+    bioToggle();
   }
 
   if (data.type === 'NCA_BIO_LOGIN'){
