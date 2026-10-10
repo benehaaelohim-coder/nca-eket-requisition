@@ -86,7 +86,7 @@ background:white;
 <script>
 (function(){
 
-const WRAPPER_VERSION = 'wrapper v8.24';
+const WRAPPER_VERSION = 'wrapper v8.25';
 const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzonygCenDGufNEwecUW8VI1-698tD11wNmzj1InljFrKUe4CdKb5y4seUu2CfcIyAK/exec";
 
 const bioBtn = document.getElementById('bioBtn');
@@ -240,13 +240,13 @@ async function bioToggle(){
       await bioLogin();
     }else if(!enrolled && loggedIn){
       await bioEnroll();
-      setStatus('Fingerprint / Face ID login enabled on this device.');
-      alert('Fingerprint / Face ID login is now enabled on this device.');
+      setStatus('Biometric login activated on this device.');
+      alert('Biometric Login is now activated. Next time, tap the Biometric button beside Login to Dashboard.');
     }else if(enrolled && loggedIn){
       const s = bioStored();
       await postBackend({ action:'bioRemove', sessionToken: window.__ncaSessionToken, deviceId: s.deviceId });
       bioWipe();
-      setStatus('Fingerprint login removed from this device.');
+      setStatus('Biometric login removed from this device.');
     }else{
       setStatus('Log in with your password first, then tap this button again.');
       alert('Please log in with your username and password first, then tap this button to enable Fingerprint / Face ID.');
