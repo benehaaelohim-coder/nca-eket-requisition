@@ -4,10 +4,11 @@
 
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>NCA GLOBAL E-Requisition</title>
+<title>NCA GLOBAL E-PORTAL</title>
 
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#662D91">
+<meta name="apple-mobile-web-app-title" content="NCA Portal">
 
 <style>
 
@@ -47,6 +48,7 @@ font-weight:bold;
 #notifyBtn, #bioBtn{ background:white; color:#662D91; }
 .hidden{ display:none!important; }
 
+/* v8.27: the status bar is hidden unless it has a message (errors / progress). */
 #status{
 font-size:11px;
 padding:5px 10px;
@@ -54,18 +56,44 @@ background:white;
 color:#333;
 text-align:center;
 }
+#status:empty{ display:none; }
 
 iframe{
 width:100%;
-height: calc(100vh - 85px);
+height: calc(100vh - 62px);
 border:0;
 background:white;
 }
+
+/* v8.27: launch screen with the tagline, shown until the portal has loaded. */
+#splash{
+position:fixed;
+inset:0;
+z-index:9999;
+display:flex;
+flex-direction:column;
+align-items:center;
+justify-content:center;
+gap:12px;
+padding:24px;
+text-align:center;
+color:#fff;
+background:linear-gradient(135deg,#662D91,#4e1f70);
+transition:opacity .5s ease;
+}
+#splash.splashHide{ opacity:0; pointer-events:none; }
+.splashTitle{ font-size:28px; font-weight:bold; letter-spacing:.5px; }
+.splashTag{ font-size:15px; opacity:.9; }
 
 </style>
 </head>
 
 <body>
+
+<div id="splash">
+<div class="splashTitle">NCA GLOBAL E-PORTAL</div>
+<div class="splashTag">One Church. One Platform. One Mission.</div>
+</div>
 
 <div id="topbar">
 <div class="brand"></div>
@@ -77,9 +105,30 @@ background:white;
 </div>
 </div>
 
-<div id="status">Loading system...</div>
+<div id="status"></div>
 
 <iframe id="portal" src="https://script.google.com/macros/s/AKfycbzonygCenDGufNEwecUW8VI1-698tD11wNmzj1InljFrKUe4CdKb5y4seUu2CfcIyAK/exec"></iframe>
+
+<!-- ============================================================
+     SPLASH — hides once the portal frame has loaded
+============================================================ -->
+<script>
+(function(){
+  const splash = document.getElementById('splash');
+  const portal = document.getElementById('portal');
+  let done = false;
+
+  function hideSplash(){
+    if(done) return;
+    done = true;
+    splash.classList.add('splashHide');
+    setTimeout(function(){ splash.style.display = 'none'; }, 600);
+  }
+
+  portal.addEventListener('load', function(){ setTimeout(hideSplash, 400); });
+  setTimeout(hideSplash, 10000);   // safety: never leave the splash up
+})();
+</script>
 
 <!-- ============================================================
      PART 1 — FINGERPRINT / FACE ID  (plain script, no Firebase)
@@ -88,7 +137,7 @@ background:white;
 <script>
 (function(){
 
-const WRAPPER_VERSION = 'wrapper v8.26';
+const WRAPPER_VERSION = 'wrapper v8.27';
 const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzonygCenDGufNEwecUW8VI1-698tD11wNmzj1InljFrKUe4CdKb5y4seUu2CfcIyAK/exec";
 
 const bioBtn = document.getElementById('bioBtn');
@@ -100,6 +149,15 @@ let bioSupported = false;
 let bioReason = '';
 
 function setStatus(text){ statusEl.textContent = text; }
+
+/* Any message that does appear in the status bar clears itself after 8 seconds. */
+let statusTimer = null;
+new MutationObserver(function(){
+  clearTimeout(statusTimer);
+  if(statusEl.textContent){
+    statusTimer = setTimeout(function(){ statusEl.textContent = ''; }, 8000);
+  }
+}).observe(statusEl, { childList:true, characterData:true, subtree:true });
 
 const BIO_KEY = 'NCA_BIO_V2';
 
@@ -273,7 +331,8 @@ bioBtn.addEventListener('click', bioToggle);
     bioReason = 'check failed: ' + e.message;
   }
 
-  setStatus(WRAPPER_VERSION + ' — Fingerprint: ' + (bioSupported ? 'available' : 'not available (' + bioReason + ')'));
+  /* v8.27: diagnostics go to the console instead of the page header. */
+  console.info(WRAPPER_VERSION + ' — Fingerprint: ' + (bioSupported ? 'available' : 'not available (' + bioReason + ')'));
   refreshBioButton();
 })();
 
@@ -304,13 +363,13 @@ window.addEventListener('message', function(event){
 
   if (data.type === 'NCA_EKET_USER_LOGGED_OUT'){
     window.__ncaSessionToken = null;
-    setStatus('Logged out.');
     refreshBioButton();
   }
 
   if (data.type === 'NCA_EKET_PORTAL_READY'){
     broadcastBioState();
-    setStatus('NCA GLOBAL System Ready (' + WRAPPER_VERSION + ').' + (bioSupported ? '' : ' Fingerprint not available: ' + bioReason));
+    setStatus('');
+    console.info('NCA GLOBAL System Ready (' + WRAPPER_VERSION + ').' + (bioSupported ? '' : ' Fingerprint not available: ' + bioReason));
   }
 
   if (data.type === 'NCA_BIO_INVALID'){
