@@ -1,8 +1,9 @@
 {
-  "name": "NCA EKET E-Requisition",
-  "short_name": "NCA E-Requisition",
-  "description": "NCA EKET Procurement and Requisition Management System",
+  "name": "NCA GLOBAL E-PORTAL",
+  "short_name": "NCA Portal",
+  "description": "One Church. One Platform. One Mission.",
   "start_url": "./",
+  "scope": "./",
   "display": "standalone",
   "background_color": "#f4f5f8",
   "theme_color": "#662D91",
